@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
+import 'package:study_app/studypilot/core/sp_user.dart';
+import 'package:study_app/studypilot/data/demo_workspace_repository.dart';
+import 'package:study_app/studypilot/screens/dashboard/dashboard_tab.dart';
 import 'package:study_app/studypilot/screens/shell/studypilot_shell.dart';
 
 Future<void> _pumpShell(WidgetTester tester, Size size) async {
@@ -9,9 +12,10 @@ Future<void> _pumpShell(WidgetTester tester, Size size) async {
   addTearDown(tester.view.reset);
   await tester.pumpWidget(MaterialApp(
     theme: SpTheme.build(Brightness.light, useGoogleFonts: false),
-    home: const StudyPilotShell(
-      homeTabOverride: Text('Home stub'),
-      profileTabOverride: Text('Profile stub'),
+    home: StudyPilotShell(
+      userOverride: const SpUserInfo(uid: 'me', displayName: 'Test User'),
+      repositoryOverride: DemoWorkspaceRepository(currentUserId: 'me', currentUserName: 'Test User'),
+      profileTabOverride: const Text('Profile stub'),
     ),
   ));
 }
@@ -25,7 +29,9 @@ void main() {
     for (final label in ['Home', 'Teams', 'Tasks', 'Reports', 'Profile']) {
       expect(find.text(label), findsOneWidget);
     }
-    expect(find.text('Home stub'), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.byType(DashboardTab), findsOneWidget);
+    expect(find.textContaining(', Test'), findsOneWidget); // greeting uses the scoped user
 
     await tester.tap(find.text('Tasks'));
     await tester.pumpAndSettle();
