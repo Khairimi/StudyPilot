@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
+import 'package:study_app/studypilot/screens/dashboard/dashboard_tab.dart';
 import 'package:study_app/studypilot/screens/profile/sp_profile_tab.dart';
 import 'package:study_app/studypilot/screens/shell/sp_placeholder_tab.dart';
 
@@ -23,11 +24,13 @@ const _destinations = [
 /// StudyPilot app shell: bottom NavigationBar on phones, NavigationRail on
 /// wide screens (web/tablet). Tabs keep their state via IndexedStack.
 class StudyPilotShell extends StatefulWidget {
-  /// Overrides the Profile tab (tests run without Firebase).
+  /// Override the Home / Profile tabs (tests run without Firebase).
+  @visibleForTesting
+  final Widget? homeTabOverride;
   @visibleForTesting
   final Widget? profileTabOverride;
 
-  const StudyPilotShell({super.key, this.profileTabOverride});
+  const StudyPilotShell({super.key, this.homeTabOverride, this.profileTabOverride});
 
   /// Width at which the rail replaces the bottom bar (Material 3 "medium").
   static const double railBreakpoint = 840;
@@ -40,11 +43,7 @@ class _StudyPilotShellState extends State<StudyPilotShell> {
   int _index = 0;
 
   late final List<Widget> _tabs = [
-    const SpPlaceholderTab(
-      icon: Icons.dashboard_outlined,
-      title: 'Dashboard coming soon',
-      message: 'Your priority tasks, team workload health and recent activity will appear here.',
-    ),
+    widget.homeTabOverride ?? const DashboardTab(),
     const SpPlaceholderTab(
       icon: Icons.groups_outlined,
       title: 'Team workspaces coming soon',
