@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:study_app/screens/global/auth_screens.dart';
-import 'package:study_app/theme/app_theme.dart';
+import 'package:study_app/studypilot/core/branding.dart';
+import 'package:study_app/studypilot/core/theme/sp_colors.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -52,7 +53,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: AppTheme.primaryGradient,
+          gradient: LinearGradient(
+            colors: [SpColors.indigo500, SpColors.indigo700],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
         ),
         child: Center(
           child: FadeTransition(
@@ -82,7 +87,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'Study Flow',
+                  SpBrand.appName,
                   style: Theme.of(context).textTheme.displayMedium?.copyWith(
                         color: Colors.white,
                         letterSpacing: 1.5,
@@ -91,10 +96,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'your productivity companion',
+                  SpBrand.tagline,
+                  textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.white.withOpacity(0.9),
-                        fontStyle: FontStyle.italic,
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                 ),
               ],

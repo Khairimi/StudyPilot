@@ -70,7 +70,7 @@ class DataExportService {
     await file.writeAsString(json);
     await Share.shareXFiles(
       [XFile(file.path, mimeType: 'application/json')],
-      subject: 'Study Flow Backup',
+      subject: 'StudyPilot Backup',
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:study_app/theme/app_theme.dart';
+import 'package:study_app/studypilot/core/branding.dart';
+import 'package:study_app/studypilot/core/theme/sp_theme.dart';
 import 'package:study_app/screens/global/splash_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:study_app/database/hive_service.dart';
@@ -48,10 +49,10 @@ class StudyApp extends StatelessWidget {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         return MaterialApp(
-          title: 'Study Flow',
+          title: SpBrand.appName,
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
+          theme: SpTheme.light,
+          darkTheme: SpTheme.dark,
           themeMode: themeProvider.themeMode,
           home: const SplashScreen(),
         );
