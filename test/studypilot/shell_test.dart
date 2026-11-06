@@ -9,7 +9,10 @@ Future<void> _pumpShell(WidgetTester tester, Size size) async {
   addTearDown(tester.view.reset);
   await tester.pumpWidget(MaterialApp(
     theme: SpTheme.build(Brightness.light, useGoogleFonts: false),
-    home: const StudyPilotShell(profileTabOverride: Text('Profile stub')),
+    home: const StudyPilotShell(
+      homeTabOverride: Text('Home stub'),
+      profileTabOverride: Text('Profile stub'),
+    ),
   ));
 }
 
@@ -22,7 +25,7 @@ void main() {
     for (final label in ['Home', 'Teams', 'Tasks', 'Reports', 'Profile']) {
       expect(find.text(label), findsOneWidget);
     }
-    expect(find.text('Dashboard coming soon'), findsOneWidget);
+    expect(find.text('Home stub'), findsOneWidget);
 
     await tester.tap(find.text('Tasks'));
     await tester.pumpAndSettle();
