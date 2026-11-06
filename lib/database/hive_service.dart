@@ -82,7 +82,26 @@ class HiveService {
     }
   }
 
-  static Box<Subject> get subjectsBox => Hive.box<Subject>(subjectsBoxName);
+  // Per-user subjects box (subjectsbox_<uid>) so accounts on the same device
+  // never see each other's subjects. The original shared 'subjectsBox' is
+  // still opened and left untouched (no migration), and is only returned
+  // when no user box has been opened yet.
+  static Box<Subject>? _userSubjectsBox;
+
+  static Future<Box<Subject>?> openSubjectsBoxForUser(String? uid) async {
+    if (uid == null) {
+      _userSubjectsBox = null;
+      return null;
+    }
+    final name = '${subjectsBoxName}_$uid'.toLowerCase();
+    _userSubjectsBox = Hive.isBoxOpen(name)
+        ? Hive.box<Subject>(name)
+        : await Hive.openBox<Subject>(name);
+    return _userSubjectsBox;
+  }
+
+  static Box<Subject> get subjectsBox =>
+      _userSubjectsBox ?? Hive.box<Subject>(subjectsBoxName);
   static Box<Chapter> get chaptersBox => Hive.box<Chapter>(chaptersBoxName);
   static Box<Note> get notesBox => Hive.box<Note>(notesBoxName);
   static Box<StudySession> get studyTimeBox => Hive.box<StudySession>(studyTimeBoxName);
