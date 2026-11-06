@@ -64,19 +64,27 @@ class DataImportService {
       }
     }
 
+    // ── Target: the signed-in user's own storage only ─────────────────────
+    // Captured once so the whole import goes to the same user even if the
+    // account changes mid-way (stale writes then fail on closed boxes).
+    final b = HiveService.activeOrNull;
+    if (b == null) {
+      return ImportResult(success: false, message: 'Sign in before importing a backup.');
+    }
+
     // ── Clear existing data ────────────────────────────────────────────────
     if (clearFirst) {
-      await HiveService.subjectsBox.clear();
-      await HiveService.chaptersBox.clear();
-      await HiveService.notesBox.clear();
-      await HiveService.studyTimeBox.clear();
-      await HiveService.flashcardsBox.clear();
-      await HiveService.todosBox.clear();
-      await HiveService.academicSubjectsBox.clear();
-      await HiveService.attendanceRecordsBox.clear();
-      await HiveService.classSchedulesBox.clear();
-      await HiveService.timestampsBox.clear();
-      await HiveService.mindMapsBox.clear();
+      await b.subjects.clear();
+      await b.chapters.clear();
+      await b.notes.clear();
+      await b.studyTime.clear();
+      await b.flashcards.clear();
+      await b.todos.clear();
+      await b.academicSubjects.clear();
+      await b.attendanceRecords.clear();
+      await b.classSchedules.clear();
+      await b.timestamps.clear();
+      await b.mindMaps.clear();
     }
 
     // ── Helper to safely cast list ─────────────────────────────────────────
@@ -96,7 +104,7 @@ class DataImportService {
       final subjects = asList('subjects');
       for (final m in subjects) {
         final s = m.toSubject();
-        await HiveService.subjectsBox.put(s.id, s);
+        await b.subjects.put(s.id, s);
       }
       counts['subjects'] = subjects.length;
 
@@ -104,7 +112,7 @@ class DataImportService {
       final chapters = asList('chapters');
       for (final m in chapters) {
         final c = m.toChapter();
-        await HiveService.chaptersBox.put(c.id, c);
+        await b.chapters.put(c.id, c);
       }
       counts['chapters'] = chapters.length;
 
@@ -112,7 +120,7 @@ class DataImportService {
       final notes = asList('notes');
       for (final m in notes) {
         final n = m.toNote();
-        await HiveService.notesBox.put(n.id, n);
+        await b.notes.put(n.id, n);
       }
       counts['notes'] = notes.length;
 
@@ -120,7 +128,7 @@ class DataImportService {
       final sessions = asList('studySessions');
       for (final m in sessions) {
         final s = m.toStudySession();
-        await HiveService.studyTimeBox.put(s.id, s);
+        await b.studyTime.put(s.id, s);
       }
       counts['studySessions'] = sessions.length;
 
@@ -128,7 +136,7 @@ class DataImportService {
       final flashcards = asList('flashcards');
       for (final m in flashcards) {
         final f = m.toFlashcard();
-        await HiveService.flashcardsBox.put(f.id, f);
+        await b.flashcards.put(f.id, f);
       }
       counts['flashcards'] = flashcards.length;
 
@@ -136,7 +144,7 @@ class DataImportService {
       final todos = asList('todos');
       for (final m in todos) {
         final t = m.toTodo();
-        await HiveService.todosBox.put(t.id, t);
+        await b.todos.put(t.id, t);
       }
       counts['todos'] = todos.length;
 
@@ -144,7 +152,7 @@ class DataImportService {
       final academicSubjects = asList('academicSubjects');
       for (final m in academicSubjects) {
         final a = m.toSubjectAttendance();
-        await HiveService.academicSubjectsBox.put(a.id, a);
+        await b.academicSubjects.put(a.id, a);
       }
       counts['academicSubjects'] = academicSubjects.length;
 
@@ -152,7 +160,7 @@ class DataImportService {
       final records = asList('attendanceRecords');
       for (final m in records) {
         final r = m.toAttendanceRecord();
-        await HiveService.attendanceRecordsBox.put(r.id, r);
+        await b.attendanceRecords.put(r.id, r);
       }
       counts['attendanceRecords'] = records.length;
 
@@ -160,7 +168,7 @@ class DataImportService {
       final schedules = asList('classSchedules');
       for (final m in schedules) {
         final s = m.toClassSchedule();
-        await HiveService.classSchedulesBox.put(s.id, s);
+        await b.classSchedules.put(s.id, s);
       }
       counts['classSchedules'] = schedules.length;
 
@@ -168,7 +176,7 @@ class DataImportService {
       final timestamps = asList('timestamps');
       for (final m in timestamps) {
         final t = m.toTimestamp();
-        await HiveService.timestampsBox.put(t.id, t);
+        await b.timestamps.put(t.id, t);
       }
       counts['timestamps'] = timestamps.length;
 
@@ -176,7 +184,7 @@ class DataImportService {
       final mindMaps = asList('mindMaps');
       for (final m in mindMaps) {
         final mm = m.toMindMap();
-        await HiveService.mindMapsBox.put(mm.id, mm);
+        await b.mindMaps.put(mm.id, mm);
       }
       counts['mindMaps'] = mindMaps.length;
 
@@ -184,9 +192,11 @@ class DataImportService {
 
       // Settings
       final settings = data['settings'] as Map<String, dynamic>?;
-      if (settings != null) {
-        await HiveService.settingsBox.clear();
-        await HiveService.settingsBox.putAll(settings);
+      // Only user-specific keys are restored, into this user's settings.
+      // Device-wide settings and other users' keys are never imported.
+      final name = settings?['student_name'];
+      if (name is String && name.isNotEmpty) {
+        await b.settings.put('student_name', name);
       }
     } catch (e) {
       return ImportResult(

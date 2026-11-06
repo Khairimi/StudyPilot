@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:study_app/database/hive_service.dart';
 import 'package:study_app/widgets/custom_card.dart';
 import 'package:study_app/screens/subject/subject_shell.dart';
 import 'package:study_app/providers/subject_provider.dart';
@@ -380,6 +381,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _syncFromClassroom(BuildContext context) async {
+    // Results must only be written for the account that started the sync.
+    final sessionAtStart = HiveService.sessionId;
     if (!ClassroomService.isAvailable) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -440,6 +443,7 @@ class _HomeScreenState extends State<HomeScreen> {
       int chaptersAdded = 0;
 
       for (final entry in byCourse.entries) {
+        if (!HiveService.isCurrentSession(sessionAtStart)) return;
         final courseId = entry.key;
         final courseAssignments = entry.value;
         final courseTitle = courseAssignments.first.courseTitle;
@@ -495,6 +499,7 @@ if (a.type == ClassroomItemType.assignment) {
   );
 }
 
+if (!HiveService.isCurrentSession(sessionAtStart)) return;
 chapterProvider.upsertChapterFromSync(
   id: chapterId,
   subjectId: subjectId,
