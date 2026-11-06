@@ -1,39 +1,51 @@
 import 'package:flutter/foundation.dart';
-import 'package:hive/hive.dart';
 import 'package:study_app/database/hive_service.dart';
+import 'package:study_app/database/user_session.dart';
 import 'package:study_app/models/academic/subject_attendance.dart';
 import 'package:study_app/models/academic/attendance_record.dart';
 import 'package:study_app/models/academic/class_schedule.dart';
 
-class AcademicProvider extends ChangeNotifier {
-  final Box<SubjectAttendance> _subjectsBox = HiveService.academicSubjectsBox;
-  final Box<AttendanceRecord> _recordsBox = HiveService.attendanceRecordsBox;
-  final Box<ClassSchedule> _schedulesBox = HiveService.classSchedulesBox;
+class AcademicProvider extends ChangeNotifier implements UserScopedState {
+  /// Active user's boxes, or null when signed out. Multi-step operations
+  /// capture this once so later awaits cannot switch to another user.
+  UserBoxes? get _boxes => HiveService.activeOrNull;
+
+  @override
+  void clearUserState() => notifyListeners();
+
+  @override
+  Future<void> loadUserState(String uid) async => notifyListeners();
 
   // ── Subject CRUD ──
 
-  List<SubjectAttendance> get subjects => _subjectsBox.values.toList();
+  List<SubjectAttendance> get subjects => _boxes?.academicSubjects.values.toList() ?? [];
 
   Future<void> addSubject(String name, double requiredPercentage) async {
+    final b = _boxes;
+    if (b == null) return;
     final s = SubjectAttendance(subjectName: name, requiredPercentage: requiredPercentage);
-    await _subjectsBox.put(s.id, s);
+    await b.academicSubjects.put(s.id, s);
     notifyListeners();
   }
 
   Future<void> deleteSubject(String id) async {
-    await _subjectsBox.delete(id);
+    final b = _boxes;
+    if (b == null) return;
+    await b.academicSubjects.delete(id);
     // Delete related records & schedules
-    final recordKeys = _recordsBox.values.where((r) => r.subjectId == id).map((r) => r.id).toList();
-    for (var k in recordKeys) { await _recordsBox.delete(k); }
-    final schedKeys = _schedulesBox.values.where((s) => s.subjectId == id).map((s) => s.id).toList();
-    for (var k in schedKeys) { await _schedulesBox.delete(k); }
+    final recordKeys = b.attendanceRecords.values.where((r) => r.subjectId == id).map((r) => r.id).toList();
+    for (var k in recordKeys) { await b.attendanceRecords.delete(k); }
+    final schedKeys = b.classSchedules.values.where((s) => s.subjectId == id).map((s) => s.id).toList();
+    for (var k in schedKeys) { await b.classSchedules.delete(k); }
     notifyListeners();
   }
 
   Future<void> clearAllData() async {
-    await _subjectsBox.clear();
-    await _recordsBox.clear();
-    await _schedulesBox.clear();
+    final b = _boxes;
+    if (b == null) return;
+    await b.academicSubjects.clear();
+    await b.attendanceRecords.clear();
+    await b.classSchedules.clear();
     notifyListeners();
   }
 
@@ -44,7 +56,9 @@ class AcademicProvider extends ChangeNotifier {
   // ── Attendance Marking ──
 
   Future<void> markAttendance(String subjectId, String status, {String? note}) async {
-    final subject = _subjectsBox.get(subjectId);
+    final b = _boxes;
+    if (b == null) return;
+    final subject = b.academicSubjects.get(subjectId);
     if (subject == null) return;
 
     subject.totalClasses++;
@@ -52,52 +66,58 @@ class AcademicProvider extends ChangeNotifier {
     await subject.save();
 
     final record = AttendanceRecord(subjectId: subjectId, status: status, note: note);
-    await _recordsBox.put(record.id, record);
+    await b.attendanceRecords.put(record.id, record);
     notifyListeners();
   }
 
   Future<void> deleteRecord(String recordId) async {
-    final record = _recordsBox.get(recordId);
+    final b = _boxes;
+    if (b == null) return;
+    final record = b.attendanceRecords.get(recordId);
     if (record == null) return;
 
-    final subject = _subjectsBox.get(record.subjectId);
+    final subject = b.academicSubjects.get(record.subjectId);
     if (subject != null) {
       subject.totalClasses--;
       if (record.status == 'present') subject.attendedClasses--;
       await subject.save();
     }
-    await _recordsBox.delete(recordId);
+    await b.attendanceRecords.delete(recordId);
     notifyListeners();
   }
 
   List<AttendanceRecord> getRecordsForSubject(String subjectId) {
-    final records = _recordsBox.values.where((r) => r.subjectId == subjectId).toList();
+    final records = _boxes?.attendanceRecords.values.where((r) => r.subjectId == subjectId).toList() ?? [];
     records.sort((a, b) => b.date.compareTo(a.date));
     return records;
   }
 
   // ── Schedule CRUD ──
 
-  List<ClassSchedule> get schedules => _schedulesBox.values.toList();
+  List<ClassSchedule> get schedules => _boxes?.classSchedules.values.toList() ?? [];
 
   List<ClassSchedule> getScheduleForDay(int dayOfWeek) {
-    final list = _schedulesBox.values.where((s) => s.dayOfWeek == dayOfWeek).toList();
+    final list = _boxes?.classSchedules.values.where((s) => s.dayOfWeek == dayOfWeek).toList() ?? [];
     list.sort((a, b) => a.startTime.compareTo(b.startTime));
     return list;
   }
 
   List<ClassSchedule> getScheduleForSubject(String subjectId) {
-    return _schedulesBox.values.where((s) => s.subjectId == subjectId).toList();
+    return _boxes?.classSchedules.values.where((s) => s.subjectId == subjectId).toList() ?? [];
   }
 
   Future<void> addSchedule(String subjectId, int dayOfWeek, String startTime, String endTime, String? room) async {
+    final b = _boxes;
+    if (b == null) return;
     final s = ClassSchedule(subjectId: subjectId, dayOfWeek: dayOfWeek, startTime: startTime, endTime: endTime, room: room);
-    await _schedulesBox.put(s.id, s);
+    await b.classSchedules.put(s.id, s);
     notifyListeners();
   }
 
   Future<void> deleteSchedule(String id) async {
-    await _schedulesBox.delete(id);
+    final b = _boxes;
+    if (b == null) return;
+    await b.classSchedules.delete(id);
     notifyListeners();
   }
 
@@ -117,13 +137,14 @@ class AcademicProvider extends ChangeNotifier {
 
   int get missedThisMonth {
     final now = DateTime.now();
-    return _recordsBox.values
-        .where((r) => r.status == 'absent' && r.date.year == now.year && r.date.month == now.month)
-        .length;
+    return _boxes?.attendanceRecords.values
+            .where((r) => r.status == 'absent' && r.date.year == now.year && r.date.month == now.month)
+            .length ??
+        0;
   }
 
   String? getSubjectName(String subjectId) {
-    final s = _subjectsBox.get(subjectId);
+    final s = _boxes?.academicSubjects.get(subjectId);
     return s?.subjectName;
   }
 }

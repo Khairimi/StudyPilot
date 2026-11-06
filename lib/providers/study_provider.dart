@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:study_app/models/study_session.dart';
+import 'package:hive/hive.dart';
 import 'package:study_app/database/hive_service.dart';
+import 'package:study_app/database/user_session.dart';
 import 'package:uuid/uuid.dart';
 
 enum TimeRange { today, yesterday, last7Days, last30Days }
 
-class StudyProvider with ChangeNotifier {
+class StudyProvider with ChangeNotifier implements UserScopedState {
   List<StudySession> _sessions = [];
   final _uuid = const Uuid();
 
@@ -22,9 +24,24 @@ class StudyProvider with ChangeNotifier {
   String? get activeSubjectId => _activeSubjectId;
   String? get activeChapterId => _activeChapterId;
 
-  StudyProvider() {
-    _loadSessions();
+  /// Active user's box, or null when signed out (operations become no-ops).
+  Box<StudySession>? get _box => HiveService.activeOrNull?.studyTime;
+
+  /// Stops a running timer first (saving it for the user who started it,
+  /// whose storage is still active at this point), then clears memory.
+  @override
+  void clearUserState() {
+    if (isTimerRunning) {
+      stopActiveTimer();
+    } else {
+      cancelActiveTimer();
+    }
+    _sessions = [];
+    notifyListeners();
   }
+
+  @override
+  Future<void> loadUserState(String uid) async => _loadSessions();
 
   void startActiveTimer(String subjectId, {String? chapterId}) {
     if (isTimerRunning) return;
@@ -62,7 +79,7 @@ class StudyProvider with ChangeNotifier {
   }
 
   void _loadSessions() {
-    _sessions = HiveService.studyTimeBox.values.toList();
+    _sessions = _box?.values.toList() ?? [];
     _sessions.sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
   }
@@ -80,35 +97,41 @@ class StudyProvider with ChangeNotifier {
       chapterId: chapterId,
     );
 
-    HiveService.studyTimeBox.put(newSession.id, newSession);
+    final box = _box;
+    if (box == null) return;
+    box.put(newSession.id, newSession);
     _loadSessions();
   }
 
   void deleteSession(String sessionId) {
-    HiveService.studyTimeBox.delete(sessionId);
+    _box?.delete(sessionId);
     _loadSessions();
   }
 
   void deleteSessionsForChapter(String chapterId) {
-    final sessionKeysToDelete = HiveService.studyTimeBox.values
+    final box = _box;
+    if (box == null) return;
+    final sessionKeysToDelete = box.values
         .where((s) => s.chapterId == chapterId)
         .map((s) => s.id)
         .toList();
         
     for (var key in sessionKeysToDelete) {
-      HiveService.studyTimeBox.delete(key);
+      box.delete(key);
     }
     _loadSessions();
   }
 
   void deleteSessionsForSubject(String subjectId) {
-    final sessionKeysToDelete = HiveService.studyTimeBox.values
+    final box = _box;
+    if (box == null) return;
+    final sessionKeysToDelete = box.values
         .where((s) => s.subjectId == subjectId)
         .map((s) => s.id)
         .toList();
         
     for (var key in sessionKeysToDelete) {
-      HiveService.studyTimeBox.delete(key);
+      box.delete(key);
     }
     _loadSessions();
   }

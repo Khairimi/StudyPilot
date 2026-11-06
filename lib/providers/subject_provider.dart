@@ -1,104 +1,100 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:hive/hive.dart';
 import 'package:study_app/models/subject.dart';
 import 'package:study_app/database/hive_service.dart';
+import 'package:study_app/database/user_session.dart';
 import 'package:uuid/uuid.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class SubjectProvider with ChangeNotifier {
+class SubjectProvider with ChangeNotifier implements UserScopedState {
   List<Subject> _subjects = [];
   final _uuid = const Uuid();
-  final _firestore = FirebaseFirestore.instance;
 
-  StreamSubscription<User?>? _authSub;
-  String? _uid;
-  Box<Subject>? _box;
-  // Bumped on every account change so results from an old account's
-  // async work are ignored.
+  /// Boxes of the user this provider currently serves (captured on load).
+  /// Every operation uses these, so a late async step can never read or
+  /// write another account's storage.
+  UserBoxes? _boxes;
+
+  // Bumped on every account change so async results from an old account
+  // are ignored.
   int _generation = 0;
 
   List<Subject> get subjects => _subjects;
 
-  CollectionReference<Map<String, dynamic>>? get _collection => _uid == null
-      ? null
-      : _firestore.collection('users').doc(_uid).collection('subjects');
+  CollectionReference<Map<String, dynamic>> _collectionFor(String uid) =>
+      FirebaseFirestore.instance.collection('users').doc(uid).collection('subjects');
 
-  SubjectProvider() {
-    // Fires immediately with the current user, then on every login/logout.
-    _authSub = FirebaseAuth.instance.authStateChanges().listen(_onAuthChanged);
-  }
-
-  Future<void> _onAuthChanged(User? user) async {
-    final gen = ++_generation;
-    _uid = user?.uid;
-    _box = null;
+  @override
+  void clearUserState() {
+    _generation++;
+    _boxes = null;
     _subjects = [];
     notifyListeners();
-
-    final box = await HiveService.openSubjectsBoxForUser(user?.uid);
-    if (gen != _generation) return; // account changed meanwhile
-    _box = box;
-    _loadSubjects();
-    if (box != null) await _syncFromFirestore();
   }
 
+  @override
+  Future<void> loadUserState(String uid) async {
+    final boxes = HiveService.activeOrNull;
+    if (boxes == null || boxes.uid != uid) return;
+    _generation++;
+    _boxes = boxes;
+    _loadSubjects();
+    // Cloud sync runs in the background; it must not block the UI gate.
+    unawaited(_syncFromFirestore());
+  }
+
+  bool _isCurrent(int gen, UserBoxes boxes) =>
+      gen == _generation && identical(_boxes, boxes);
+
   void _loadSubjects() {
-    _subjects = _box?.values.toList() ?? [];
+    _subjects = _boxes?.subjects.values.toList() ?? [];
     _subjects.sort((a, b) => b.createdDate.compareTo(a.createdDate));
     notifyListeners();
   }
 
-  // ---- Pending cloud operations (per user, stored in settingsBox) ----
+  // ---- Pending cloud operations (in the user's own settings box) ----
   // Local changes whose Firestore write/delete has not succeeded yet. They
   // stop stale cloud data from overwriting newer local edits or restoring
   // deleted subjects, and are retried on the next sync.
 
-  String _pendingKey(String kind) => 'pendingSubject${kind}_$_uid';
+  static String _pendingKey(String kind) => 'pendingSubject$kind';
 
-  Set<String> _pending(String kind) {
-    if (_uid == null) return {};
-    final raw = HiveService.settingsBox.get(_pendingKey(kind));
+  Set<String> _pending(UserBoxes boxes, String kind) {
+    final raw = boxes.settings.get(_pendingKey(kind));
     return raw is List ? raw.cast<String>().toSet() : <String>{};
   }
 
-  Future<void> _setPending(String kind, Set<String> ids) async {
-    if (_uid == null) return;
-    await HiveService.settingsBox.put(_pendingKey(kind), ids.toList());
-  }
-
-  Future<void> _markPending(String kind, String id, bool pending) async {
-    final ids = _pending(kind);
+  Future<void> _markPending(UserBoxes boxes, String kind, String id, bool pending) async {
+    final ids = _pending(boxes, kind);
     pending ? ids.add(id) : ids.remove(id);
-    await _setPending(kind, ids);
+    await boxes.settings.put(_pendingKey(kind), ids.toList());
   }
 
   // ---- Firestore sync ----
 
   Future<void> _syncFromFirestore() async {
-    final collection = _collection;
-    final box = _box;
-    if (collection == null || box == null) return;
+    final boxes = _boxes;
+    if (boxes == null) return;
     final gen = _generation;
+    final collection = _collectionFor(boxes.uid);
 
     // 1. Retry local changes that never reached the cloud.
-    await _retryPending(collection, box, gen);
-    if (gen != _generation) return;
+    await _retryPending(collection, boxes, gen);
+    if (!_isCurrent(gen, boxes)) return;
 
     // 2. Pull cloud subjects into this user's local box (keyed by id, so
     //    no duplicates). Skip ids with unsynced local deletes/edits.
     try {
       final snapshot = await collection.get();
-      if (gen != _generation) return;
-      final skip = {..._pending('Deletes'), ..._pending('Upserts')};
+      if (!_isCurrent(gen, boxes)) return;
+      final skip = {..._pending(boxes, 'Deletes'), ..._pending(boxes, 'Upserts')};
       for (final doc in snapshot.docs) {
         if (skip.contains(doc.id)) continue;
         final subject = Subject.fromMap(doc.data());
-        await box.put(subject.id, subject);
+        await boxes.subjects.put(subject.id, subject);
       }
-      _loadSubjects();
+      if (_isCurrent(gen, boxes)) _loadSubjects();
     } catch (e) {
       debugPrint('Firestore subject sync (read) failed: $e');
     }
@@ -106,51 +102,44 @@ class SubjectProvider with ChangeNotifier {
 
   Future<void> _retryPending(
     CollectionReference<Map<String, dynamic>> collection,
-    Box<Subject> box,
+    UserBoxes boxes,
     int gen,
   ) async {
-    for (final id in _pending('Deletes')) {
-      if (gen != _generation) return;
-      try {
+    try {
+      for (final id in _pending(boxes, 'Deletes')) {
+        if (!_isCurrent(gen, boxes)) return;
         await collection.doc(id).delete();
-        await _markPending('Deletes', id, false);
-      } catch (e) {
-        debugPrint('Firestore subject delete retry failed: $e');
-        return; // likely offline/permission issue; try again next sync
+        await _markPending(boxes, 'Deletes', id, false);
       }
-    }
-    for (final id in _pending('Upserts')) {
-      if (gen != _generation) return;
-      final subject = box.get(id);
-      try {
-        if (subject != null) {
-          await collection.doc(id).set(subject.toMap());
-        }
-        await _markPending('Upserts', id, false);
-      } catch (e) {
-        debugPrint('Firestore subject upload retry failed: $e');
-        return;
+      for (final id in _pending(boxes, 'Upserts')) {
+        if (!_isCurrent(gen, boxes)) return;
+        final subject = boxes.subjects.get(id);
+        if (subject != null) await collection.doc(id).set(subject.toMap());
+        await _markPending(boxes, 'Upserts', id, false);
       }
+    } catch (e) {
+      // Likely offline / permission issue (or storage closed after an
+      // account switch); stays pending and is retried next sync.
+      debugPrint('Firestore subject retry failed: $e');
     }
   }
 
   /// Push one local change to Firestore without blocking or failing the
   /// local operation. On failure it stays pending and is retried later.
-  Future<void> _pushToCloud(String id, {required bool isDelete}) async {
-    final collection = _collection;
-    if (collection == null) return;
+  Future<void> _pushToCloud(UserBoxes boxes, String id, {required bool isDelete}) async {
     final kind = isDelete ? 'Deletes' : 'Upserts';
-    await _markPending(kind, id, true);
-    if (isDelete) await _markPending('Upserts', id, false);
+    final collection = _collectionFor(boxes.uid);
     try {
+      await _markPending(boxes, kind, id, true);
+      if (isDelete) await _markPending(boxes, 'Upserts', id, false);
       if (isDelete) {
         await collection.doc(id).delete();
       } else {
-        final subject = _box?.get(id);
+        final subject = boxes.subjects.get(id);
         if (subject == null) return;
         await collection.doc(id).set(subject.toMap());
       }
-      await _markPending(kind, id, false);
+      await _markPending(boxes, kind, id, false);
     } catch (e) {
       debugPrint('Firestore subject ${isDelete ? 'delete' : 'save'} failed '
           '(kept locally, will retry): $e');
@@ -177,35 +166,30 @@ class SubjectProvider with ChangeNotifier {
   }
 
   Future<void> _saveSubject(Subject subject) async {
-    final box = _box;
-    if (box == null) return;
-    await box.put(subject.id, subject);
-    _loadSubjects();
-    await _pushToCloud(subject.id, isDelete: false);
+    final boxes = _boxes;
+    if (boxes == null) return;
+    await boxes.subjects.put(subject.id, subject);
+    if (identical(_boxes, boxes)) _loadSubjects();
+    await _pushToCloud(boxes, subject.id, isDelete: false);
   }
 
   void updateSubject(String id, String newName, int newColorValue) async {
-    final subject = _box?.get(id);
-    if (subject == null) return;
+    final boxes = _boxes;
+    final subject = boxes?.subjects.get(id);
+    if (boxes == null || subject == null) return;
     subject.name = newName;
     subject.colorValue = newColorValue;
     await subject.save();
-    _loadSubjects();
+    if (identical(_boxes, boxes)) _loadSubjects();
     // Full set() instead of update(): also works if the cloud doc is missing.
-    await _pushToCloud(id, isDelete: false);
+    await _pushToCloud(boxes, id, isDelete: false);
   }
 
   void deleteSubject(String id) async {
-    final box = _box;
-    if (box == null) return;
-    await box.delete(id);
-    _loadSubjects();
-    await _pushToCloud(id, isDelete: true);
-  }
-
-  @override
-  void dispose() {
-    _authSub?.cancel();
-    super.dispose();
+    final boxes = _boxes;
+    if (boxes == null) return;
+    await boxes.subjects.delete(id);
+    if (identical(_boxes, boxes)) _loadSubjects();
+    await _pushToCloud(boxes, id, isDelete: true);
   }
 }

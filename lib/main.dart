@@ -1,7 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:study_app/database/user_session.dart';
 import 'package:study_app/studypilot/core/branding.dart';
 import 'package:study_app/studypilot/core/theme/sp_theme.dart';
 import 'package:study_app/screens/global/splash_screen.dart';
+import 'package:study_app/screens/global/user_session_gate.dart';
 import 'package:provider/provider.dart';
 import 'package:study_app/database/hive_service.dart';
 import 'package:study_app/providers/subject_provider.dart';
@@ -23,17 +26,43 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // User-scoped providers: their data is cleared and reloaded by
+  // UserSession whenever the signed-in Firebase user changes.
+  final subjectProvider = SubjectProvider();
+  final chapterProvider = ChapterProvider();
+  final noteProvider = NoteProvider();
+  final studyProvider = StudyProvider();
+  final todoProvider = TodoProvider();
+  final flashcardProvider = FlashcardProvider();
+  final mindMapProvider = MindMapProvider();
+  final academicProvider = AcademicProvider();
+
+  final session = UserSession(
+    uidStream: FirebaseAuth.instance.authStateChanges().map((u) => u?.uid),
+    participants: [
+      subjectProvider,
+      chapterProvider,
+      noteProvider,
+      studyProvider,
+      todoProvider,
+      flashcardProvider,
+      mindMapProvider,
+      academicProvider,
+    ],
+  )..start();
+
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => SubjectProvider()),
-        ChangeNotifierProvider(create: (_) => ChapterProvider()),
-        ChangeNotifierProvider(create: (_) => NoteProvider()),
-        ChangeNotifierProvider(create: (_) => StudyProvider()),
-        ChangeNotifierProvider(create: (_) => TodoProvider()),
-        ChangeNotifierProvider(create: (_) => FlashcardProvider()),
-        ChangeNotifierProvider(create: (_) => MindMapProvider()),
-        ChangeNotifierProvider(create: (_) => AcademicProvider()),
+        ChangeNotifierProvider.value(value: session),
+        ChangeNotifierProvider.value(value: subjectProvider),
+        ChangeNotifierProvider.value(value: chapterProvider),
+        ChangeNotifierProvider.value(value: noteProvider),
+        ChangeNotifierProvider.value(value: studyProvider),
+        ChangeNotifierProvider.value(value: todoProvider),
+        ChangeNotifierProvider.value(value: flashcardProvider),
+        ChangeNotifierProvider.value(value: mindMapProvider),
+        ChangeNotifierProvider.value(value: academicProvider),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: const StudyApp(),
@@ -54,6 +83,8 @@ class StudyApp extends StatelessWidget {
           theme: SpTheme.light,
           darkTheme: SpTheme.dark,
           themeMode: themeProvider.themeMode,
+          // Covers the app while a user's storage is loading or failed.
+          builder: (context, child) => UserSessionGate(child: child!),
           home: const SplashScreen(),
         );
       },

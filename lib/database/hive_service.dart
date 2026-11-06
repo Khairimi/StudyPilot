@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:study_app/models/subject.dart';
 import 'package:study_app/models/chapter.dart';
@@ -13,12 +14,64 @@ import 'package:study_app/models/academic/attendance_record.dart';
 import 'package:study_app/models/academic/class_schedule.dart';
 import 'package:study_app/models/timestamp.dart';
 
+/// Thrown when user data is accessed while no signed-in user's storage is
+/// active. There is deliberately no fallback to the legacy shared boxes.
+class NoActiveUserError extends StateError {
+  NoActiveUserError() : super('No signed-in user storage is active.');
+}
+
+/// All Hive boxes belonging to one Firebase user, opened as
+/// `<boxName>_<uid>`. Capture this object at the start of any async
+/// operation so later writes cannot land in another user's storage.
+class UserBoxes {
+  final String uid;
+  final int sessionId;
+  final Box<Subject> subjects;
+  final Box<Chapter> chapters;
+  final Box<Note> notes;
+  final Box<StudySession> studyTime;
+  final Box<Todo> todos;
+  final Box<Flashcard> flashcards;
+  final Box<MindMap> mindMaps;
+  final Box<SubjectAttendance> academicSubjects;
+  final Box<AttendanceRecord> attendanceRecords;
+  final Box<ClassSchedule> classSchedules;
+  final Box<Timestamp> timestamps;
+
+  /// User-specific settings (e.g. display name, sync bookkeeping).
+  final Box settings;
+
+  UserBoxes._({
+    required this.uid,
+    required this.sessionId,
+    required this.subjects,
+    required this.chapters,
+    required this.notes,
+    required this.studyTime,
+    required this.todos,
+    required this.flashcards,
+    required this.mindMaps,
+    required this.academicSubjects,
+    required this.attendanceRecords,
+    required this.classSchedules,
+    required this.timestamps,
+    required this.settings,
+  });
+
+  List<Box> get all => [
+        subjects, chapters, notes, studyTime, todos, flashcards, mindMaps,
+        academicSubjects, attendanceRecords, classSchedules, timestamps, settings,
+      ];
+}
+
 class HiveService {
+  // Base box names. The original names are also the legacy *shared* boxes
+  // from CSC660, which are kept on disk untouched and are never opened.
   static const String subjectsBoxName = 'subjectsBox';
   static const String chaptersBoxName = 'chaptersBox';
   static const String notesBoxName = 'notesBox';
   static const String studyTimeBoxName = 'studyTimeBox';
-  static const String settingsBoxName = 'settingsBox';
+  static const String settingsBoxName = 'settingsBox'; // device-wide
   static const String todosBoxName = 'todosBox';
   static const String flashcardsBoxName = 'flashcardsBox';
   static const String mindMapsBoxName = 'mindMapsBox';
@@ -26,51 +79,51 @@ class HiveService {
   static const String attendanceRecordsBoxName = 'attendanceRecordsBox';
   static const String classSchedulesBoxName = 'classSchedulesBox';
   static const String timestampsBoxName = 'timestampsBox';
+  static const String userSettingsBoxName = 'userSettingsBox';
+
+  /// Every user-data box base name (legacy shared boxes use these names).
+  static const List<String> legacySharedBoxNames = [
+    subjectsBoxName, chaptersBoxName, notesBoxName, studyTimeBoxName,
+    todosBoxName, flashcardsBoxName, mindMapsBoxName, academicSubjectsBoxName,
+    attendanceRecordsBoxName, classSchedulesBoxName, timestampsBoxName,
+  ];
 
   // Kekal nama box lama untuk one-time cleanup — lihat _cleanupLegacyDrawingsBox()
   static const String _legacyDrawingsBoxName = 'drawingsBox';
 
   static Future<void> init() async {
     await Hive.initFlutter();
-
-    // Register Adapters
-    Hive.registerAdapter(SubjectAdapter());
-    Hive.registerAdapter(ChapterAdapter());
-    Hive.registerAdapter(NoteAdapter());
-    Hive.registerAdapter(BlockTypeAdapter());
-    Hive.registerAdapter(BlockAdapter());
-    Hive.registerAdapter(StudySessionAdapter());
-    Hive.registerAdapter(TodoAdapter());
-    Hive.registerAdapter(TodoSubTaskAdapter());
-    Hive.registerAdapter(FlashcardAdapter());
-    Hive.registerAdapter(MindMapNodeAdapter());
-    Hive.registerAdapter(MindMapAdapter());
-    Hive.registerAdapter(SubjectAttendanceAdapter());
-    Hive.registerAdapter(AttendanceRecordAdapter());
-    Hive.registerAdapter(ClassScheduleAdapter());
-    Hive.registerAdapter(TimestampAdapter());
-    // DrawingAdapter dah dibuang — Freehand Canvas feature discontinued
-
-    // Open Boxes
-    await Hive.openBox<Subject>(subjectsBoxName);
-    await Hive.openBox<Chapter>(chaptersBoxName);
-    await Hive.openBox<Note>(notesBoxName);
-    await Hive.openBox<StudySession>(studyTimeBoxName);
+    registerAdapters();
+    // Only the device-wide settings box is opened at startup. User data is
+    // opened per signed-in user by activateUser().
     await Hive.openBox(settingsBoxName);
-    await Hive.openBox<Todo>(todosBoxName);
-    await Hive.openBox<Flashcard>(flashcardsBoxName);
-    await Hive.openBox<MindMap>(mindMapsBoxName);
-    await Hive.openBox<SubjectAttendance>(academicSubjectsBoxName);
-    await Hive.openBox<AttendanceRecord>(attendanceRecordsBoxName);
-    await Hive.openBox<ClassSchedule>(classSchedulesBoxName);
-    await Hive.openBox<Timestamp>(timestampsBoxName);
-
     await _cleanupLegacyDrawingsBox();
   }
 
+  static void registerAdapters() {
+    void reg<T>(TypeAdapter<T> a) {
+      if (!Hive.isAdapterRegistered(a.typeId)) Hive.registerAdapter<T>(a);
+    }
+
+    reg(SubjectAdapter());
+    reg(ChapterAdapter());
+    reg(NoteAdapter());
+    reg(BlockTypeAdapter());
+    reg(BlockAdapter());
+    reg(StudySessionAdapter());
+    reg(TodoAdapter());
+    reg(TodoSubTaskAdapter());
+    reg(FlashcardAdapter());
+    reg(MindMapNodeAdapter());
+    reg(MindMapAdapter());
+    reg(SubjectAttendanceAdapter());
+    reg(AttendanceRecordAdapter());
+    reg(ClassScheduleAdapter());
+    reg(TimestampAdapter());
+    // DrawingAdapter dah dibuang — Freehand Canvas feature discontinued
+  }
+
   // One-time cleanup: buang fail box lama 'drawingsBox' dari disk kalau wujud.
-  // Guna deleteBoxFromDisk (bukan buka box) sebab kita dah tak register
-  // DrawingAdapter — buka box lama tanpa adapter akan throw error.
   static Future<void> _cleanupLegacyDrawingsBox() async {
     try {
       final exists = await Hive.boxExists(_legacyDrawingsBoxName);
@@ -82,35 +135,143 @@ class HiveService {
     }
   }
 
-  // Per-user subjects box (subjectsbox_<uid>) so accounts on the same device
-  // never see each other's subjects. The original shared 'subjectsBox' is
-  // still opened and left untouched (no migration), and is only returned
-  // when no user box has been opened yet.
-  static Box<Subject>? _userSubjectsBox;
+  // ---------------------------------------------------------------------
+  // Per-user session
+  // ---------------------------------------------------------------------
 
-  static Future<Box<Subject>?> openSubjectsBoxForUser(String? uid) async {
-    if (uid == null) {
-      _userSubjectsBox = null;
-      return null;
-    }
-    final name = '${subjectsBoxName}_$uid'.toLowerCase();
-    _userSubjectsBox = Hive.isBoxOpen(name)
-        ? Hive.box<Subject>(name)
-        : await Hive.openBox<Subject>(name);
-    return _userSubjectsBox;
+  static UserBoxes? _active;
+  static int _sessionId = 0;
+  static Future<void> _queue = Future.value();
+
+  /// Increments on every activate/deactivate.
+  static int get sessionId => _sessionId;
+
+  /// True if [id] is still the current, active session.
+  static bool isCurrentSession(int id) => _active != null && id == _sessionId;
+
+  static UserBoxes? get activeOrNull => _active;
+  static String? get activeUid => _active?.uid;
+
+  static UserBoxes requireActive() {
+    final a = _active;
+    if (a == null) throw NoActiveUserError();
+    return a;
   }
 
-  static Box<Subject> get subjectsBox =>
-      _userSubjectsBox ?? Hive.box<Subject>(subjectsBoxName);
-  static Box<Chapter> get chaptersBox => Hive.box<Chapter>(chaptersBoxName);
-  static Box<Note> get notesBox => Hive.box<Note>(notesBoxName);
-  static Box<StudySession> get studyTimeBox => Hive.box<StudySession>(studyTimeBoxName);
+  static String userBoxName(String base, String uid) => '${base}_$uid'.toLowerCase();
+
+  // Runs storage operations one at a time so a box is never opened while
+  // it is still being closed by a previous switch.
+  static Future<T> _serial<T>(Future<T> Function() op) {
+    final result = _queue.then((_) => op());
+    _queue = result.then((_) {}, onError: (_) {});
+    return result;
+  }
+
+  /// Immediately stops serving the current user's data, then closes their
+  /// boxes (non-destructive: data stays on disk).
+  static Future<void> deactivateUser() {
+    _sessionId++;
+    final old = _active;
+    _active = null;
+    return _serial(() => _closeAll(old));
+  }
+
+  /// Opens [uid]'s boxes and makes them active. Returns false if a newer
+  /// activate/deactivate superseded this call. Throws if opening fails, in
+  /// which case no user storage is active (fail closed).
+  static Future<bool> activateUser(String uid) {
+    _sessionId++;
+    final id = _sessionId;
+    final old = _active;
+    _active = null;
+    return _serial(() async {
+      await _closeAll(old);
+      if (id != _sessionId) return false;
+      final boxes = await _openUserBoxes(uid, id);
+      if (id != _sessionId) {
+        await _closeAll(boxes);
+        return false;
+      }
+      _active = boxes;
+      return true;
+    });
+  }
+
+  static Future<void> _closeAll(UserBoxes? boxes) async {
+    if (boxes == null) return;
+    for (final b in boxes.all) {
+      try {
+        if (b.isOpen) await b.close();
+      } catch (e) {
+        debugPrint('Hive close failed for ${b.name}: $e');
+      }
+    }
+  }
+
+  static Future<UserBoxes> _openUserBoxes(String uid, int id) async {
+    Future<Box<T>> open<T>(String base) => Hive.openBox<T>(userBoxName(base, uid));
+
+    final boxes = UserBoxes._(
+      uid: uid,
+      sessionId: id,
+      subjects: await open<Subject>(subjectsBoxName),
+      chapters: await open<Chapter>(chaptersBoxName),
+      notes: await open<Note>(notesBoxName),
+      studyTime: await open<StudySession>(studyTimeBoxName),
+      todos: await open<Todo>(todosBoxName),
+      flashcards: await open<Flashcard>(flashcardsBoxName),
+      mindMaps: await open<MindMap>(mindMapsBoxName),
+      academicSubjects: await open<SubjectAttendance>(academicSubjectsBoxName),
+      attendanceRecords: await open<AttendanceRecord>(attendanceRecordsBoxName),
+      classSchedules: await open<ClassSchedule>(classSchedulesBoxName),
+      timestamps: await open<Timestamp>(timestampsBoxName),
+      settings: await open<dynamic>(userSettingsBoxName),
+    );
+    await _moveUidTaggedDeviceKeys(uid, boxes.settings);
+    return boxes;
+  }
+
+  /// Subject-sync bookkeeping was briefly stored in the device box as
+  /// `pendingSubject<Kind>_<uid>`. Those keys carry the owner's uid, so they
+  /// are moved into that user's own settings box. Nothing else is touched.
+  static Future<void> _moveUidTaggedDeviceKeys(String uid, Box userSettings) async {
+    final device = settingsBox;
+    for (final kind in const ['Deletes', 'Upserts']) {
+      final oldKey = 'pendingSubject${kind}_$uid';
+      final newKey = 'pendingSubject$kind';
+      if (!device.containsKey(oldKey)) continue;
+      final value = device.get(oldKey);
+      if (!userSettings.containsKey(newKey) && value is List) {
+        await userSettings.put(newKey, value.cast<String>().toList());
+      }
+      await device.delete(oldKey);
+    }
+  }
+
+  @visibleForTesting
+  static Future<void> resetForTest() async {
+    await deactivateUser();
+    _queue = Future.value();
+  }
+
+  // ---------------------------------------------------------------------
+  // Accessors. User-data getters throw NoActiveUserError when signed out.
+  // ---------------------------------------------------------------------
+
+  /// Device-wide settings (e.g. dark mode). Not for user data.
   static Box get settingsBox => Hive.box(settingsBoxName);
-  static Box<Todo> get todosBox => Hive.box<Todo>(todosBoxName);
-  static Box<Flashcard> get flashcardsBox => Hive.box<Flashcard>(flashcardsBoxName);
-  static Box<MindMap> get mindMapsBox => Hive.box<MindMap>(mindMapsBoxName);
-  static Box<SubjectAttendance> get academicSubjectsBox => Hive.box<SubjectAttendance>(academicSubjectsBoxName);
-  static Box<AttendanceRecord> get attendanceRecordsBox => Hive.box<AttendanceRecord>(attendanceRecordsBoxName);
-  static Box<ClassSchedule> get classSchedulesBox => Hive.box<ClassSchedule>(classSchedulesBoxName);
-  static Box<Timestamp> get timestampsBox => Hive.box<Timestamp>(timestampsBoxName);
+
+  static Box get userSettingsBox => requireActive().settings;
+  static Box<Subject> get subjectsBox => requireActive().subjects;
+  static Box<Chapter> get chaptersBox => requireActive().chapters;
+  static Box<Note> get notesBox => requireActive().notes;
+  static Box<StudySession> get studyTimeBox => requireActive().studyTime;
+  static Box<Todo> get todosBox => requireActive().todos;
+  static Box<Flashcard> get flashcardsBox => requireActive().flashcards;
+  static Box<MindMap> get mindMapsBox => requireActive().mindMaps;
+  static Box<SubjectAttendance> get academicSubjectsBox => requireActive().academicSubjects;
+  static Box<AttendanceRecord> get attendanceRecordsBox => requireActive().attendanceRecords;
+  static Box<ClassSchedule> get classSchedulesBox => requireActive().classSchedules;
+  static Box<Timestamp> get timestampsBox => requireActive().timestamps;
 }
