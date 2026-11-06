@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:study_app/studypilot/core/domain_enums.dart';
 import 'package:study_app/studypilot/core/theme/sp_colors.dart';
 
-/// Shared vocabulary for the six CSC661 features. Defined with the design
-/// system so badges look identical everywhere; later task/workload models
-/// should reuse these enums rather than redefine them.
+export 'package:study_app/studypilot/core/domain_enums.dart';
 
-enum SpPriority { urgent, high, medium, low }
-
-enum SpTaskStatus { todo, inProgress, inReview, completed }
-
-enum SpSeverity { high, medium, low }
-
-enum SpRole { owner, member }
+/// UI presentation (labels, icons, colours) for the shared domain enums.
+/// The enums themselves live in pure Dart (domain_enums.dart) so models and
+/// engines do not depend on Flutter.
 
 extension SpPriorityX on SpPriority {
   String get label => switch (this) {
