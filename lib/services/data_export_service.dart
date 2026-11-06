@@ -18,33 +18,38 @@ import 'package:study_app/models/mappers/mind_map_mapper.dart';
 class DataExportService {
   static const int exportVersion = 1;
 
-  /// Build a JSON-serializable map of all app data.
+  /// Build a JSON-serializable map of the signed-in user's data only.
+  /// Throws [NoActiveUserError] when no user storage is active.
   static Map<String, dynamic> buildExportMap() {
+    final b = HiveService.requireActive();
     return {
       'version': exportVersion,
       'exportedAt': DateTime.now().toIso8601String(),
       'subjects':
-          HiveService.subjectsBox.values.map((s) => s.toMap()).toList(),
+          b.subjects.values.map((s) => s.toMap()).toList(),
       'chapters':
-          HiveService.chaptersBox.values.map((c) => c.toMap()).toList(),
-      'notes': HiveService.notesBox.values.map((n) => n.toMap()).toList(),
+          b.chapters.values.map((c) => c.toMap()).toList(),
+      'notes': b.notes.values.map((n) => n.toMap()).toList(),
       'studySessions':
-          HiveService.studyTimeBox.values.map((s) => s.toMap()).toList(),
+          b.studyTime.values.map((s) => s.toMap()).toList(),
       'flashcards':
-          HiveService.flashcardsBox.values.map((f) => f.toMap()).toList(),
-      'todos': HiveService.todosBox.values.map((t) => t.toMap()).toList(),
+          b.flashcards.values.map((f) => f.toMap()).toList(),
+      'todos': b.todos.values.map((t) => t.toMap()).toList(),
       'academicSubjects':
-          HiveService.academicSubjectsBox.values.map((a) => a.toMap()).toList(),
-      'attendanceRecords': HiveService.attendanceRecordsBox.values
+          b.academicSubjects.values.map((a) => a.toMap()).toList(),
+      'attendanceRecords': b.attendanceRecords.values
           .map((r) => r.toMap())
           .toList(),
       'classSchedules':
-          HiveService.classSchedulesBox.values.map((s) => s.toMap()).toList(),
+          b.classSchedules.values.map((s) => s.toMap()).toList(),
       'timestamps':
-          HiveService.timestampsBox.values.map((t) => t.toMap()).toList(),
+          b.timestamps.values.map((t) => t.toMap()).toList(),
       'mindMaps':
-          HiveService.mindMapsBox.values.map((m) => m.toMap()).toList(),
-      'settings': HiveService.settingsBox.toMap(),
+          b.mindMaps.values.map((m) => m.toMap()).toList(),
+      'settings': {
+        if (b.settings.containsKey('student_name'))
+          'student_name': b.settings.get('student_name'),
+      },
     };
   }
 
