@@ -16,6 +16,7 @@ import 'package:study_app/providers/study_provider.dart';
 import 'package:study_app/providers/mind_map_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:study_app/screens/global/auth_screens.dart';
+import 'package:study_app/services/auth_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -54,7 +55,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
 
     if (confirm == true) {
-      await FirebaseAuth.instance.signOut();
+      await AuthService.signOut();
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,

@@ -46,6 +46,15 @@ app.*.map.json
 
 # Firebase
 android/app/google-services.json
+**/GoogleService-Info.plist
+.firebase/
+# Service account / admin SDK keys (never commit)
+*-firebase-adminsdk-*.json
+**/serviceAccount*.json
+**/service-account*.json
+# Local environment secrets
+.env
+.env.*
 
 # Local junk (generated plugin dump, old run logs)
 /main1
