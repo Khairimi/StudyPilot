@@ -1,7 +1,7 @@
 import 'package:study_app/services/auth_service.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:study_app/screens/global/main_screen.dart';
+import 'package:study_app/studypilot/screens/shell/studypilot_shell.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:study_app/studypilot/core/branding.dart';
 
@@ -136,7 +136,7 @@ class _SignInScreenState extends State<SignInScreen> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
+        MaterialPageRoute(builder: (_) => const StudyPilotShell()),
       );
     } on FirebaseAuthException catch (e) {
       String message = 'Sign in failed.';
@@ -160,7 +160,7 @@ class _SignInScreenState extends State<SignInScreen> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
+        MaterialPageRoute(builder: (_) => const StudyPilotShell()),
       );
     } catch (e) {
       if (!mounted) return;
@@ -332,7 +332,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
+        MaterialPageRoute(builder: (_) => const StudyPilotShell()),
       );
     } on FirebaseAuthException catch (e) {
       String message = 'Registration failed.';
@@ -356,7 +356,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
+        MaterialPageRoute(builder: (_) => const StudyPilotShell()),
       );
     } catch (e) {
       if (!mounted) return;
