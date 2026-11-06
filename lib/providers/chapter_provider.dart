@@ -1,20 +1,30 @@
 import 'package:flutter/foundation.dart';
+import 'package:hive/hive.dart';
 import 'package:study_app/models/chapter.dart';
 import 'package:study_app/database/hive_service.dart';
+import 'package:study_app/database/user_session.dart';
 import 'package:uuid/uuid.dart';
 
-class ChapterProvider with ChangeNotifier {
+class ChapterProvider with ChangeNotifier implements UserScopedState {
   List<Chapter> _allChapters = [];
   final _uuid = const Uuid();
 
-  ChapterProvider() {
-    _loadAllChapters();
-  }
+  /// Active user's box, or null when signed out (operations become no-ops).
+  Box<Chapter>? get _box => HiveService.activeOrNull?.chapters;
 
   List<Chapter> get chapters => _allChapters;
 
+  @override
+  void clearUserState() {
+    _allChapters = [];
+    notifyListeners();
+  }
+
+  @override
+  Future<void> loadUserState(String uid) async => _loadAllChapters();
+
   void _loadAllChapters() {
-    _allChapters = HiveService.chaptersBox.values.toList();
+    _allChapters = _box?.values.toList() ?? [];
     _allChapters.sort((a, b) => a.createdDate.compareTo(b.createdDate));
     notifyListeners();
   }
@@ -31,6 +41,8 @@ class ChapterProvider with ChangeNotifier {
     String description, {
     DateTime? dueDate,
   }) {
+    final box = _box;
+    if (box == null) return;
     final newChapter = Chapter(
       id: _uuid.v4(),
       subjectId: subjectId,
@@ -41,7 +53,7 @@ class ChapterProvider with ChangeNotifier {
       isCompleted: false,
     );
 
-    HiveService.chaptersBox.put(newChapter.id, newChapter);
+    box.put(newChapter.id, newChapter);
     _loadAllChapters();
   }
 
@@ -57,6 +69,8 @@ class ChapterProvider with ChangeNotifier {
     String? classroomCourseWorkId,
     int? pdfAttachmentCount,
   }) {
+    final box = _box;
+    if (box == null) return;
     final newChapter = Chapter(
       id: id,
       subjectId: subjectId,
@@ -71,7 +85,7 @@ class ChapterProvider with ChangeNotifier {
       pdfAttachmentCount: pdfAttachmentCount,
     );
 
-    HiveService.chaptersBox.put(newChapter.id, newChapter);
+    box.put(newChapter.id, newChapter);
     _loadAllChapters();
   }
 
@@ -90,7 +104,9 @@ class ChapterProvider with ChangeNotifier {
     int? pdfAttachmentCount,
     bool? isSubmitted,
   }) {
-    final existing = HiveService.chaptersBox.get(id);
+    final box = _box;
+    if (box == null) return;
+    final existing = box.get(id);
     if (existing != null) {
       existing.title = title;
       existing.description = description;
@@ -117,14 +133,14 @@ class ChapterProvider with ChangeNotifier {
         classroomCourseWorkId: classroomCourseWorkId,
         pdfAttachmentCount: pdfAttachmentCount,
       );
-      HiveService.chaptersBox.put(newChapter.id, newChapter);
+      box.put(newChapter.id, newChapter);
     }
     _loadAllChapters();
   }
 
   // Mark as done — user manually complete
   void markAsComplete(String id, {bool completed = true}) {
-    final chapter = HiveService.chaptersBox.get(id);
+    final chapter = _box?.get(id);
     if (chapter != null) {
       chapter.isCompleted = completed;
       chapter.priority = completed ? 'completed' : null;
@@ -134,7 +150,7 @@ class ChapterProvider with ChangeNotifier {
   }
 
   void updateChapter(String id, String title, String description) {
-    final chapter = HiveService.chaptersBox.get(id);
+    final chapter = _box?.get(id);
     if (chapter != null) {
       chapter.title = title;
       chapter.description = description;
@@ -144,17 +160,19 @@ class ChapterProvider with ChangeNotifier {
   }
 
   void deleteChapter(String id) {
-    HiveService.chaptersBox.delete(id);
+    final box = _box;
+    if (box == null) return;
+    box.delete(id);
     _loadAllChapters();
   }
 
   void deleteChaptersForSubject(String subjectId) {
-    final keysToDelete = HiveService.chaptersBox.values
-        .where((c) => c.subjectId == subjectId)
-        .map((c) => c.id)
-        .toList();
+    final box = _box;
+    if (box == null) return;
+    final keysToDelete =
+        box.values.where((c) => c.subjectId == subjectId).map((c) => c.id).toList();
     for (var key in keysToDelete) {
-      HiveService.chaptersBox.delete(key);
+      box.delete(key);
     }
     _loadAllChapters();
   }
