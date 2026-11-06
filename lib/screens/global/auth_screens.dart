@@ -3,12 +3,14 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:study_app/screens/global/main_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:study_app/studypilot/core/branding.dart';
 
 class AuthEntryScreen extends StatelessWidget {
   const AuthEntryScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Center(
@@ -21,23 +23,23 @@ class AuthEntryScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Spacer(),
-                  const Icon(Icons.school_rounded, size: 80, color: Colors.black87),
+                  Icon(Icons.rocket_launch_rounded, size: 80, color: scheme.primary),
                   const SizedBox(height: 24),
                   Text(
-                    'Welcome to\nStudy Flow',
+                    'Welcome to\n${SpBrand.appName}',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          color: Colors.black,
+                          color: scheme.onSurface,
                           fontWeight: FontWeight.bold,
                           height: 1.2,
                         ),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Your personal academic companion.',
+                    SpBrand.tagline,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.black54,
+                          color: scheme.onSurfaceVariant,
                         ),
                   ),
                   const Spacer(),
@@ -45,8 +47,8 @@ class AuthEntryScreen extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        foregroundColor: Colors.white,
+                        backgroundColor: scheme.primary,
+                        foregroundColor: scheme.onPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 18),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -67,9 +69,9 @@ class AuthEntryScreen extends StatelessWidget {
                     width: double.infinity,
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.black,
+                        foregroundColor: scheme.onSurface,
                         padding: const EdgeInsets.symmetric(vertical: 18),
-                        side: const BorderSide(color: Colors.black26),
+                        side: BorderSide(color: scheme.outline),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
