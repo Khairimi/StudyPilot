@@ -1,6 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
+import 'package:study_app/studypilot/core/sp_user.dart';
+import 'package:study_app/studypilot/data/demo_workspace_repository.dart';
+import 'package:study_app/studypilot/data/workspace_repository.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_tab.dart';
+import 'package:study_app/studypilot/screens/teams/teams_tab.dart';
 import 'package:study_app/studypilot/screens/profile/sp_profile_tab.dart';
 import 'package:study_app/studypilot/screens/shell/sp_placeholder_tab.dart';
 
@@ -24,13 +30,21 @@ const _destinations = [
 /// StudyPilot app shell: bottom NavigationBar on phones, NavigationRail on
 /// wide screens (web/tablet). Tabs keep their state via IndexedStack.
 class StudyPilotShell extends StatefulWidget {
-  /// Override the Home / Profile tabs (tests run without Firebase).
+  /// Test hooks (tests run without Firebase): the signed-in user, the data
+  /// source, and the Profile tab (which reads Firebase directly).
   @visibleForTesting
-  final Widget? homeTabOverride;
+  final SpUserInfo? userOverride;
+  @visibleForTesting
+  final WorkspaceRepository? repositoryOverride;
   @visibleForTesting
   final Widget? profileTabOverride;
 
-  const StudyPilotShell({super.key, this.homeTabOverride, this.profileTabOverride});
+  const StudyPilotShell({
+    super.key,
+    this.userOverride,
+    this.repositoryOverride,
+    this.profileTabOverride,
+  });
 
   /// Width at which the rail replaces the bottom bar (Material 3 "medium").
   static const double railBreakpoint = 840;
@@ -42,13 +56,24 @@ class StudyPilotShell extends StatefulWidget {
 class _StudyPilotShellState extends State<StudyPilotShell> {
   int _index = 0;
 
+  late final SpUserInfo _user = widget.userOverride ?? _userFromFirebase();
+
+  /// One shared data source for all StudyPilot tabs. Demo data until the
+  /// Firestore implementation is added.
+  late final WorkspaceRepository _repository = widget.repositoryOverride ??
+      DemoWorkspaceRepository(currentUserId: _user.uid, currentUserName: _user.displayName);
+
+  static SpUserInfo _userFromFirebase() {
+    final u = FirebaseAuth.instance.currentUser;
+    final name = (u?.displayName?.trim().isNotEmpty ?? false)
+        ? u!.displayName!.trim()
+        : (u?.email?.split('@').first ?? 'You');
+    return SpUserInfo(uid: u?.uid ?? '', displayName: name);
+  }
+
   late final List<Widget> _tabs = [
-    widget.homeTabOverride ?? const DashboardTab(),
-    const SpPlaceholderTab(
-      icon: Icons.groups_outlined,
-      title: 'Team workspaces coming soon',
-      message: 'Create or join a team workspace, manage members and roles, and share projects.',
-    ),
+    const DashboardTab(),
+    const TeamsTab(),
     const SpPlaceholderTab(
       icon: Icons.task_alt_rounded,
       title: 'Tasks coming soon',
@@ -82,6 +107,16 @@ class _StudyPilotShellState extends State<StudyPilotShell> {
     final theme = Theme.of(context);
     final current = _destinations[_index];
 
+    return SpUserScope(
+      user: _user,
+      child: RepositoryProvider<WorkspaceRepository>.value(
+        value: _repository,
+        child: _buildLayout(theme, current),
+      ),
+    );
+  }
+
+  Widget _buildLayout(ThemeData theme, _SpDestination current) {
     return LayoutBuilder(builder: (context, constraints) {
       final wide = constraints.maxWidth >= StudyPilotShell.railBreakpoint;
 

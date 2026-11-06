@@ -1,15 +1,14 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
-import 'package:study_app/studypilot/data/demo_workspace_repository.dart';
+import 'package:study_app/studypilot/core/sp_user.dart';
 import 'package:study_app/studypilot/data/workspace_repository.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_cubit.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_format.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_sections.dart';
 
-/// StudyPilot Home dashboard (Phase 4). Uses [DemoWorkspaceRepository]
-/// until Firestore integration; all inputs are injectable for tests.
+/// StudyPilot Home dashboard (Phase 4). Uses the shell's shared repository
+/// (demo data until Firestore integration); inputs are injectable for tests.
 class DashboardTab extends StatelessWidget {
   final WorkspaceRepository? repository;
   final String? userId;
@@ -20,20 +19,14 @@ class DashboardTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authUser = userId == null ? FirebaseAuth.instance.currentUser : null;
-    final uid = userId ?? authUser?.uid ?? '';
-    final name = userName ??
-        ((authUser?.displayName?.trim().isNotEmpty ?? false)
-            ? authUser!.displayName!.trim()
-            : (authUser?.email?.split('@').first ?? 'You'));
+    // Defaults come from the shell (SpUserScope + shared repository).
+    final scopeUser = userId == null || userName == null ? SpUserScope.of(context) : null;
+    final uid = userId ?? scopeUser!.uid;
+    final name = userName ?? scopeUser!.displayName;
+    final repo = repository ?? context.read<WorkspaceRepository>();
 
     return BlocProvider(
-      create: (_) => DashboardCubit(
-        repository: repository ??
-            DemoWorkspaceRepository(currentUserId: uid, currentUserName: name, clock: clock),
-        userId: uid,
-        clock: clock,
-      )..load(),
+      create: (_) => DashboardCubit(repository: repo, userId: uid, clock: clock)..load(),
       child: _DashboardView(userName: name),
     );
   }
