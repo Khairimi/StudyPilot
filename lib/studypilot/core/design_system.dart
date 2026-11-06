@@ -7,6 +7,7 @@ export 'theme/sp_semantics.dart';
 export 'theme/sp_theme.dart';
 export 'theme/sp_tokens.dart';
 export 'widgets/sp_badges.dart';
+export 'widgets/sp_demo_notice.dart';
 export 'widgets/sp_empty_state.dart';
 export 'widgets/sp_member_avatar.dart';
 export 'widgets/sp_progress.dart';
