@@ -6,6 +6,7 @@ import 'package:study_app/studypilot/data/workspace_repository.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_cubit.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_format.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_sections.dart';
+import 'package:study_app/studypilot/screens/workload/workload_insights_screen.dart';
 
 /// StudyPilot Home dashboard (Phase 4). Uses the shell's shared repository
 /// (demo data until Firestore integration); inputs are injectable for tests.
@@ -78,8 +79,17 @@ class _ReadyView extends StatelessWidget {
         final wide = constraints.maxWidth >= 900;
         const gap = SizedBox(height: SpSpacing.xl);
 
+        void openWorkload() => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => WorkloadInsightsScreen(
+                repository: cubit.repository,
+                userId: cubit.userId,
+                workspaceId: s.workspace.id,
+                clock: cubit.clock,
+              ),
+            ));
+
         final priority = PriorityTasksSection(summary: s, now: now);
-        final workload = WorkloadHealthSection(summary: s);
+        final workload = WorkloadHealthSection(summary: s, onViewDetails: openWorkload);
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(SpSpacing.lg, SpSpacing.lg, SpSpacing.lg, SpSpacing.xxl),
@@ -99,7 +109,7 @@ class _ReadyView extends StatelessWidget {
             ],
             if (s.conflicts.isNotEmpty) ...[
               const SizedBox(height: SpSpacing.lg),
-              WorkloadAlertCard(summary: s),
+              WorkloadAlertCard(summary: s, onViewDetails: openWorkload),
             ],
             const SizedBox(height: SpSpacing.lg),
             KpiGrid(summary: s),
