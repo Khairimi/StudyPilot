@@ -11,5 +11,6 @@ export 'widgets/sp_demo_notice.dart';
 export 'widgets/sp_empty_state.dart';
 export 'widgets/sp_member_avatar.dart';
 export 'widgets/sp_progress.dart';
+export 'widgets/sp_score_badge.dart';
 export 'widgets/sp_section_heading.dart';
 export 'widgets/studypilot_card.dart';
