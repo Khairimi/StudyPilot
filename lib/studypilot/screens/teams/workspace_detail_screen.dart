@@ -25,7 +25,7 @@ class WorkspaceDetailScreen extends StatelessWidget {
     final ws = overview.workspace;
     final isOwner = overview.isOwner(userId);
     return Scaffold(
-      appBar: AppBar(title: Text(ws.name, overflow: TextOverflow.ellipsis)),
+      appBar: AppBar(title: Text(ws.name, maxLines: 1, overflow: TextOverflow.ellipsis)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(SpSpacing.lg, SpSpacing.md, SpSpacing.lg, SpSpacing.xxl),
         children: [

@@ -48,7 +48,14 @@ class SpSectionHeading extends StatelessWidget {
             ),
           ),
           if (actionLabel != null && onAction != null)
-            TextButton(onPressed: onAction, child: Text(actionLabel!)),
+            // Flexible so long action labels shrink instead of overflowing
+            // narrow phones.
+            Flexible(
+              child: TextButton(
+                onPressed: onAction,
+                child: Text(actionLabel!, maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
+            ),
         ],
       ),
     );

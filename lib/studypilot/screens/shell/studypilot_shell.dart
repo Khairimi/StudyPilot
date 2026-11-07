@@ -47,7 +47,7 @@ class StudyPilotShell extends StatefulWidget {
   });
 
   /// Width at which the rail replaces the bottom bar (Material 3 "medium").
-  static const double railBreakpoint = 840;
+  static const double railBreakpoint = SpBreakpoints.navigationRail;
 
   @override
   State<StudyPilotShell> createState() => _StudyPilotShellState();
