@@ -95,7 +95,9 @@ void main() {
   group('Teams UI', () {
     testWidgets('lists workspaces with roles and demo label', (tester) async {
       await pumpTeams(tester);
-      expect(find.text('Team Workspaces'), findsOneWidget);
+      // On phones the title lives in the shell app bar, not the body.
+      expect(find.text('Team Workspaces'), findsNothing);
+      expect(find.text('Your teams, their projects and members.'), findsOneWidget);
       expect(find.textContaining('Demo data'), findsOneWidget);
       expect(find.text('Demo · Kopi Corner Team'), findsOneWidget);
       expect(find.text('Demo · CSC661 Project Group'), findsOneWidget);

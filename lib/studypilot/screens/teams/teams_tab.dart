@@ -51,8 +51,12 @@ class _TeamsView extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(SpSpacing.lg, SpSpacing.lg, SpSpacing.lg, SpSpacing.xxl),
               children: [
-                Text('Team Workspaces', style: Theme.of(context).textTheme.displaySmall),
-                const SizedBox(height: SpSpacing.xs),
+                // On phones the shell's app bar already reads "Team Workspaces";
+                // only wide layouts (app bar shows the brand) need this heading.
+                if (MediaQuery.sizeOf(context).width >= SpBreakpoints.navigationRail) ...[
+                  Text('Team Workspaces', style: Theme.of(context).textTheme.displaySmall),
+                  const SizedBox(height: SpSpacing.xs),
+                ],
                 Text('Your teams, their projects and members.', style: Theme.of(context).textTheme.bodyMedium),
                 const SizedBox(height: SpSpacing.lg),
                 Row(
@@ -146,8 +150,9 @@ class _WorkspaceCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(ws.name, style: theme.textTheme.titleMedium, overflow: TextOverflow.ellipsis),
-                    Text(workspaceTypeLabel(ws.type), style: theme.textTheme.bodySmall),
+                    Text(ws.name, style: theme.textTheme.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(workspaceTypeLabel(ws.type),
+                        style: theme.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
@@ -168,6 +173,7 @@ class _WorkspaceCard extends StatelessWidget {
                   '${ws.members.length} members · ${overview.projects.length} projects · '
                   '${overview.activeTaskCount} active tasks',
                   style: theme.textTheme.bodySmall,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),

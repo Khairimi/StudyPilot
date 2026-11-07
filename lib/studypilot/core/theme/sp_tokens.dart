@@ -15,6 +15,14 @@ class SpSpacing {
   static const double minTouch = 44;
 }
 
+/// Layout breakpoints (logical pixels).
+class SpBreakpoints {
+  SpBreakpoints._();
+
+  /// Navigation rail replaces the bottom bar (Material 3 "medium").
+  static const double navigationRail = 840;
+}
+
 /// Corner radii: rounded-lg / rounded-xl / rounded-2xl / rounded-full.
 class SpRadius {
   SpRadius._();

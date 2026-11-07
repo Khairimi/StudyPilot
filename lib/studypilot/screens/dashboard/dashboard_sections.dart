@@ -59,10 +59,13 @@ class WorkspaceSelector extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(selected.name, style: theme.textTheme.titleMedium, overflow: TextOverflow.ellipsis),
+                    Text(selected.name,
+                        style: theme.textTheme.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
                     Text(
                       '${workspaceTypeLabel(selected.type)} · ${selected.members.length} members',
                       style: theme.textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -129,16 +132,25 @@ class WorkloadAlertCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Title wraps (max 2 lines) beside a top-aligned severity badge, so
+          // long member names never squeeze or push the badge.
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.warning_amber_rounded, color: tone.foreground),
+              Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: Icon(Icons.warning_amber_rounded, size: 20, color: tone.foreground),
+              ),
               const SizedBox(width: SpSpacing.sm),
               Expanded(
                 child: Text(
                   'Workload imbalance: ${summary.memberName(c.memberId)}',
                   style: theme.textTheme.titleMedium?.copyWith(color: tone.foreground),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: SpSpacing.sm),
               SpSeverityBadge(severity: c.severity),
             ],
           ),
