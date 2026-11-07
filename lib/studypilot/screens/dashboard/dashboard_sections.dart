@@ -117,7 +117,10 @@ class DemoDataBanner extends StatelessWidget {
 /// Imbalance Alert").
 class WorkloadAlertCard extends StatelessWidget {
   final DashboardSummary summary;
-  const WorkloadAlertCard({super.key, required this.summary});
+
+  /// Opens Workload Insights (null = not available in this context).
+  final VoidCallback? onViewDetails;
+  const WorkloadAlertCard({super.key, required this.summary, this.onViewDetails});
 
   @override
   Widget build(BuildContext context) {
@@ -172,8 +175,8 @@ class WorkloadAlertCard extends StatelessWidget {
                 Text('+$more more conflict${more == 1 ? '' : 's'}', style: theme.textTheme.labelMedium),
               const Spacer(),
               TextButton(
-                onPressed: () => _comingSoon(context, 'Workload review'),
-                child: const Text('Review'),
+                onPressed: onViewDetails ?? () => _comingSoon(context, 'Workload review'),
+                child: const Text('View workload'),
               ),
             ],
           ),
@@ -380,7 +383,8 @@ class PriorityTasksSection extends StatelessWidget {
 
 class WorkloadHealthSection extends StatelessWidget {
   final DashboardSummary summary;
-  const WorkloadHealthSection({super.key, required this.summary});
+  final VoidCallback? onViewDetails;
+  const WorkloadHealthSection({super.key, required this.summary, this.onViewDetails});
 
   @override
   Widget build(BuildContext context) {
@@ -392,6 +396,8 @@ class WorkloadHealthSection extends StatelessWidget {
           title: 'Team Workload Health',
           subtitle: 'Active hours vs ${hoursText(summary.workspace.workloadThresholdHours)} capacity',
           icon: Icons.monitor_heart_outlined,
+          actionLabel: onViewDetails == null ? null : 'Details',
+          onAction: onViewDetails,
         ),
         StudyPilotCard(
           child: Column(
