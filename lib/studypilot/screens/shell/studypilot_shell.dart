@@ -6,7 +6,9 @@ import 'package:study_app/studypilot/core/sp_user.dart';
 import 'package:study_app/studypilot/data/demo_workspace_repository.dart';
 import 'package:study_app/studypilot/data/workspace_repository.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_tab.dart';
+import 'package:study_app/studypilot/screens/tasks/tasks_tab.dart';
 import 'package:study_app/studypilot/screens/teams/teams_tab.dart';
+import 'package:study_app/studypilot/core/sp_shell_scope.dart';
 import 'package:study_app/studypilot/screens/profile/sp_profile_tab.dart';
 import 'package:study_app/studypilot/screens/shell/sp_placeholder_tab.dart';
 
@@ -74,11 +76,7 @@ class _StudyPilotShellState extends State<StudyPilotShell> {
   late final List<Widget> _tabs = [
     const DashboardTab(),
     const TeamsTab(),
-    const SpPlaceholderTab(
-      icon: Icons.task_alt_rounded,
-      title: 'Tasks coming soon',
-      message: 'Assign tasks, track contributions and see Smart Priority scores.',
-    ),
+    const TasksTab(),
     const SpPlaceholderTab(
       icon: Icons.insights_rounded,
       title: 'Reports coming soon',
@@ -109,9 +107,12 @@ class _StudyPilotShellState extends State<StudyPilotShell> {
 
     return SpUserScope(
       user: _user,
-      child: RepositoryProvider<WorkspaceRepository>.value(
-        value: _repository,
-        child: _buildLayout(theme, current),
+      child: SpShellScope(
+        selectTab: _select,
+        child: RepositoryProvider<WorkspaceRepository>.value(
+          value: _repository,
+          child: _buildLayout(theme, current),
+        ),
       ),
     );
   }

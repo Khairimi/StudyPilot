@@ -55,6 +55,15 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Home "All tasks" switches to the Tasks tab', (tester) async {
+    await _pumpShell(tester, const Size(390, 2400));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('All tasks'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(AppBar, 'Tasks'), findsOneWidget);
+    expect(find.text('Search tasks'), findsOneWidget);
+  });
+
   testWidgets('notifications bell opens placeholder', (tester) async {
     await _pumpShell(tester, const Size(390, 844));
     await tester.tap(find.byTooltip('Notifications'));

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
+import 'package:study_app/studypilot/core/sp_shell_scope.dart';
 import 'package:study_app/studypilot/logic/workload_engine.dart';
 import 'package:study_app/studypilot/models/models.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_format.dart';
@@ -312,7 +313,14 @@ class PriorityTasksSection extends StatelessWidget {
           subtitle: 'Ranked by deadline, priority, effort and checklist',
           icon: Icons.auto_awesome_outlined,
           actionLabel: 'All tasks',
-          onAction: () => _comingSoon(context, 'Task management'),
+          onAction: () {
+            final shell = SpShellScope.maybeOf(context);
+            if (shell != null) {
+              shell.selectTab(SpTabs.tasks);
+            } else {
+              _comingSoon(context, 'Task management');
+            }
+          },
         ),
         if (summary.priorityTasks.isEmpty)
           const StudyPilotCard(child: Text('No active tasks. Nice work!'))
@@ -323,7 +331,7 @@ class PriorityTasksSection extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _ScoreBadge(score: r.priority.score),
+                  SpScoreBadge(score: r.priority.score),
                   const SizedBox(width: SpSpacing.md),
                   Expanded(
                     child: Column(
@@ -366,37 +374,6 @@ class PriorityTasksSection extends StatelessWidget {
             const SizedBox(height: SpSpacing.sm),
           ],
       ],
-    );
-  }
-}
-
-class _ScoreBadge extends StatelessWidget {
-  final int score;
-  const _ScoreBadge({required this.score});
-
-  @override
-  Widget build(BuildContext context) {
-    final tone = score >= 70
-        ? SpTone.danger(context)
-        : score >= 40
-            ? SpTone.warning(context)
-            : SpTone.brand(context);
-    return Semantics(
-      label: 'Smart Priority score $score',
-      excludeSemantics: true,
-      child: Container(
-        width: 44,
-        height: 44,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(color: tone.background, borderRadius: BorderRadius.circular(SpRadius.md)),
-        child: Text(
-          '$score',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: tone.foreground,
-                fontWeight: FontWeight.w800,
-              ),
-        ),
-      ),
     );
   }
 }
