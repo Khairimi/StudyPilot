@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
 import 'package:study_app/studypilot/core/sp_shell_scope.dart';
@@ -198,12 +200,21 @@ class WorkloadAlertCard extends StatelessWidget {
   }
 }
 
+/// Width of one tile when [maxWidth] is split into [columns] separated by
+/// [gap]. Never negative: while a browser window is resized the available
+/// width can briefly be close to zero.
+double kpiTileWidth(double maxWidth, int columns, {double gap = SpSpacing.md}) =>
+    math.max(0.0, (maxWidth - gap * (columns - 1)) / columns);
+
 class KpiTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
   final String? caption;
   final SpTone tone;
+
+  /// Lines the caption may wrap to before it is truncated.
+  final int captionMaxLines;
 
   const KpiTile({
     super.key,
@@ -212,6 +223,7 @@ class KpiTile extends StatelessWidget {
     required this.value,
     required this.tone,
     this.caption,
+    this.captionMaxLines = 1,
   });
 
   @override
@@ -241,7 +253,12 @@ class KpiTile extends StatelessWidget {
             ),
             Text(label, style: theme.textTheme.labelMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
             if (caption != null)
-              Text(caption!, style: theme.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(
+                caption!,
+                style: theme.textTheme.bodySmall,
+                maxLines: captionMaxLines,
+                overflow: TextOverflow.ellipsis,
+              ),
           ],
         ),
       ),
@@ -290,7 +307,7 @@ class KpiGrid extends StatelessWidget {
     return LayoutBuilder(builder: (context, c) {
       final columns = c.maxWidth >= 640 ? 4 : 2;
       const gap = SpSpacing.md;
-      final width = (c.maxWidth - gap * (columns - 1)) / columns;
+      final width = kpiTileWidth(c.maxWidth, columns, gap: gap);
       return Wrap(
         spacing: gap,
         runSpacing: gap,
