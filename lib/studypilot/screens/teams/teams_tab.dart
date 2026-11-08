@@ -40,76 +40,71 @@ class _TeamsView extends StatelessWidget {
       builder: (context, state) => switch (state) {
         TeamsLoading() => const Center(child: CircularProgressIndicator()),
         TeamsError(:final message) => SpEmptyState(
-            icon: Icons.cloud_off_rounded,
-            title: 'Something went wrong',
-            message: message,
-            actionLabel: 'Try again',
-            onAction: cubit.load,
-          ),
+          icon: Icons.cloud_off_rounded,
+          title: 'Something went wrong',
+          message: message,
+          actionLabel: 'Try again',
+          onAction: cubit.load,
+        ),
         TeamsReady() => RefreshIndicator(
-            onRefresh: cubit.load,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(SpSpacing.lg, SpSpacing.lg, SpSpacing.lg, SpSpacing.xxl),
-              children: [
-                // On phones the shell's app bar already reads "Team Workspaces";
-                // only wide layouts (app bar shows the brand) need this heading.
-                if (MediaQuery.sizeOf(context).width >= SpBreakpoints.navigationRail) ...[
-                  Text('Team Workspaces', style: Theme.of(context).textTheme.displaySmall),
-                  const SizedBox(height: SpSpacing.xs),
-                ],
-                Text('Your teams, their projects and members.', style: Theme.of(context).textTheme.bodyMedium),
-                const SizedBox(height: SpSpacing.lg),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () => showCreateWorkspaceSheet(context),
-                        icon: const Icon(Icons.add_rounded, size: 18),
-                        label: const Text('Create'),
-                      ),
-                    ),
-                    const SizedBox(width: SpSpacing.md),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => showJoinWorkspaceSheet(context, mine: state.workspaces),
-                        icon: const Icon(Icons.vpn_key_outlined, size: 18),
-                        label: const Text('Join with code'),
-                      ),
-                    ),
-                  ],
-                ),
-                if (state.isDemo) ...[
-                  const SizedBox(height: SpSpacing.md),
-                  const DemoDataBanner(),
-                ],
-                const SizedBox(height: SpSpacing.lg),
-                if (state.workspaces.isEmpty)
-                  const SizedBox(
-                    height: 320,
-                    child: SpEmptyState(
-                      icon: Icons.groups_outlined,
-                      title: 'No workspaces yet',
-                      message: 'Create a workspace for your team or join one with an invite code.',
-                    ),
-                  )
-                else
-                  for (final w in state.workspaces) ...[
-                    _WorkspaceCard(
-                      overview: w,
-                      userId: userId,
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => WorkspaceDetailScreen(
-                          overview: w,
-                          userId: userId,
-                          isDemo: state.isDemo,
-                        ),
-                      )),
-                    ),
-                    const SizedBox(height: SpSpacing.md),
-                  ],
+          onRefresh: cubit.load,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(SpSpacing.lg, SpSpacing.lg, SpSpacing.lg, SpSpacing.xxl),
+            children: [
+              // On phones the shell's app bar already reads "Team Workspaces";
+              // only wide layouts (app bar shows the brand) need this heading.
+              if (MediaQuery.sizeOf(context).width >= SpBreakpoints.navigationRail) ...[
+                Text('Team Workspaces', style: Theme.of(context).textTheme.displaySmall),
+                const SizedBox(height: SpSpacing.xs),
               ],
-            ),
+              Text('Your teams, their projects and members.', style: Theme.of(context).textTheme.bodyMedium),
+              const SizedBox(height: SpSpacing.lg),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () => showCreateWorkspaceSheet(context),
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('Create'),
+                    ),
+                  ),
+                  const SizedBox(width: SpSpacing.md),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => showJoinWorkspaceSheet(context, mine: state.workspaces),
+                      icon: const Icon(Icons.vpn_key_outlined, size: 18),
+                      label: const Text('Join with code'),
+                    ),
+                  ),
+                ],
+              ),
+              if (state.isDemo) ...[const SizedBox(height: SpSpacing.md), const DemoDataBanner()],
+              const SizedBox(height: SpSpacing.lg),
+              if (state.workspaces.isEmpty)
+                const SizedBox(
+                  height: 320,
+                  child: SpEmptyState(
+                    icon: Icons.groups_outlined,
+                    title: 'No workspaces yet',
+                    message: 'Create a workspace for your team or join one with an invite code.',
+                  ),
+                )
+              else
+                for (final w in state.workspaces) ...[
+                  _WorkspaceCard(
+                    overview: w,
+                    userId: userId,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => WorkspaceDetailScreen(overview: w, userId: userId, isDemo: state.isDemo),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: SpSpacing.md),
+                ],
+            ],
           ),
+        ),
       },
     );
   }
@@ -151,8 +146,12 @@ class _WorkspaceCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(ws.name, style: theme.textTheme.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
-                    Text(workspaceTypeLabel(ws.type),
-                        style: theme.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(
+                      workspaceTypeLabel(ws.type),
+                      style: theme.textTheme.bodySmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),

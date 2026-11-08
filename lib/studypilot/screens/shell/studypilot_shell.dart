@@ -41,12 +41,7 @@ class StudyPilotShell extends StatefulWidget {
   @visibleForTesting
   final Widget? profileTabOverride;
 
-  const StudyPilotShell({
-    super.key,
-    this.userOverride,
-    this.repositoryOverride,
-    this.profileTabOverride,
-  });
+  const StudyPilotShell({super.key, this.userOverride, this.repositoryOverride, this.profileTabOverride});
 
   /// Width at which the rail replaces the bottom bar (Material 3 "medium").
   static const double railBreakpoint = SpBreakpoints.navigationRail;
@@ -62,7 +57,8 @@ class _StudyPilotShellState extends State<StudyPilotShell> {
 
   /// One shared data source for all StudyPilot tabs. Demo data until the
   /// Firestore implementation is added.
-  late final WorkspaceRepository _repository = widget.repositoryOverride ??
+  late final WorkspaceRepository _repository =
+      widget.repositoryOverride ??
       DemoWorkspaceRepository(currentUserId: _user.uid, currentUserName: _user.displayName);
 
   static SpUserInfo _userFromFirebase() {
@@ -88,16 +84,18 @@ class _StudyPilotShellState extends State<StudyPilotShell> {
   void _select(int i) => setState(() => _index = i);
 
   void _openNotifications() {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => Scaffold(
-        appBar: AppBar(title: const Text('Notifications')),
-        body: const SpPlaceholderTab(
-          icon: Icons.notifications_none_rounded,
-          title: 'Notifications coming soon',
-          message: 'Task assignments, deadline reminders and workload alerts will appear here.',
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: const Text('Notifications')),
+          body: const SpPlaceholderTab(
+            icon: Icons.notifications_none_rounded,
+            title: 'Notifications coming soon',
+            message: 'Task assignments, deadline reminders and workload alerts will appear here.',
+          ),
         ),
       ),
-    ));
+    );
   }
 
   @override
@@ -109,104 +107,94 @@ class _StudyPilotShellState extends State<StudyPilotShell> {
       user: _user,
       child: SpShellScope(
         selectTab: _select,
-        child: RepositoryProvider<WorkspaceRepository>.value(
-          value: _repository,
-          child: _buildLayout(theme, current),
-        ),
+        child: RepositoryProvider<WorkspaceRepository>.value(value: _repository, child: _buildLayout(theme, current)),
       ),
     );
   }
 
   Widget _buildLayout(ThemeData theme, _SpDestination current) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final wide = constraints.maxWidth >= StudyPilotShell.railBreakpoint;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= StudyPilotShell.railBreakpoint;
 
-      final appBar = AppBar(
-        titleSpacing: SpSpacing.lg,
-        title: Row(
-          children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
-                borderRadius: BorderRadius.circular(SpRadius.sm),
-              ),
-              child: Icon(Icons.rocket_launch_rounded, size: 18, color: theme.colorScheme.onPrimary),
-            ),
-            const SizedBox(width: SpSpacing.sm + 2),
-            Flexible(
-              child: Text(
-                wide ? SpBrand.appName : current.title,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Notifications',
-            icon: const Icon(Icons.notifications_none_rounded),
-            onPressed: _openNotifications,
-          ),
-          const SizedBox(width: SpSpacing.xs),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, color: theme.colorScheme.outlineVariant),
-        ),
-      );
-
-      final body = IndexedStack(index: _index, children: _tabs);
-
-      if (wide) {
-        return Scaffold(
-          appBar: appBar,
-          body: Row(
+        final appBar = AppBar(
+          titleSpacing: SpSpacing.lg,
+          title: Row(
             children: [
-              NavigationRail(
-                selectedIndex: _index,
-                onDestinationSelected: _select,
-                labelType: NavigationRailLabelType.all,
-                backgroundColor: theme.colorScheme.surface,
-                indicatorColor: theme.colorScheme.primaryContainer,
-                destinations: [
-                  for (final d in _destinations)
-                    NavigationRailDestination(
-                      icon: Icon(d.icon),
-                      selectedIcon: Icon(d.selectedIcon),
-                      label: Text(d.label),
-                    ),
-                ],
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(SpRadius.sm),
+                ),
+                child: Icon(Icons.rocket_launch_rounded, size: 18, color: theme.colorScheme.onPrimary),
               ),
-              VerticalDivider(width: 1, color: theme.colorScheme.outlineVariant),
-              Expanded(child: body),
+              const SizedBox(width: SpSpacing.sm + 2),
+              Flexible(child: Text(wide ? SpBrand.appName : current.title, overflow: TextOverflow.ellipsis)),
             ],
+          ),
+          actions: [
+            IconButton(
+              tooltip: 'Notifications',
+              icon: const Icon(Icons.notifications_none_rounded),
+              onPressed: _openNotifications,
+            ),
+            const SizedBox(width: SpSpacing.xs),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Divider(height: 1, color: theme.colorScheme.outlineVariant),
           ),
         );
-      }
 
-      return Scaffold(
-        appBar: appBar,
-        body: body,
-        bottomNavigationBar: DecoratedBox(
-          decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant)),
-          ),
-          child: NavigationBar(
-            selectedIndex: _index,
-            onDestinationSelected: _select,
-            destinations: [
-              for (final d in _destinations)
-                NavigationDestination(
-                  icon: Icon(d.icon),
-                  selectedIcon: Icon(d.selectedIcon),
-                  label: d.label,
+        final body = IndexedStack(index: _index, children: _tabs);
+
+        if (wide) {
+          return Scaffold(
+            appBar: appBar,
+            body: Row(
+              children: [
+                NavigationRail(
+                  selectedIndex: _index,
+                  onDestinationSelected: _select,
+                  labelType: NavigationRailLabelType.all,
+                  backgroundColor: theme.colorScheme.surface,
+                  indicatorColor: theme.colorScheme.primaryContainer,
+                  destinations: [
+                    for (final d in _destinations)
+                      NavigationRailDestination(
+                        icon: Icon(d.icon),
+                        selectedIcon: Icon(d.selectedIcon),
+                        label: Text(d.label),
+                      ),
+                  ],
                 ),
-            ],
+                VerticalDivider(width: 1, color: theme.colorScheme.outlineVariant),
+                Expanded(child: body),
+              ],
+            ),
+          );
+        }
+
+        return Scaffold(
+          appBar: appBar,
+          body: body,
+          bottomNavigationBar: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant)),
+            ),
+            child: NavigationBar(
+              selectedIndex: _index,
+              onDestinationSelected: _select,
+              destinations: [
+                for (final d in _destinations)
+                  NavigationDestination(icon: Icon(d.icon), selectedIcon: Icon(d.selectedIcon), label: d.label),
+              ],
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 }

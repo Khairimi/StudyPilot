@@ -36,8 +36,8 @@ class DashboardCubit extends Cubit<DashboardState> {
   int _request = 0; // ignores results of superseded loads
 
   DashboardCubit({required this.repository, required this.userId, DateTime Function()? clock})
-      : clock = clock ?? DateTime.now,
-        super(const DashboardLoading());
+    : clock = clock ?? DateTime.now,
+      super(const DashboardLoading());
 
   Future<void> load({String? workspaceId}) async {
     final req = ++_request;
@@ -51,10 +51,7 @@ class DashboardCubit extends Cubit<DashboardState> {
         return;
       }
       _workspaces = workspaces;
-      final selected = workspaces.firstWhere(
-        (w) => w.id == workspaceId,
-        orElse: () => workspaces.first,
-      );
+      final selected = workspaces.firstWhere((w) => w.id == workspaceId, orElse: () => workspaces.first);
       await _show(selected, req);
     } catch (e) {
       if (req == _request && !isClosed) emit(DashboardError('Could not load your workspaces.'));
@@ -75,15 +72,12 @@ class DashboardCubit extends Cubit<DashboardState> {
   Future<void> _show(Workspace ws, int req) async {
     final tasks = await repository.tasksFor(ws.id);
     if (req != _request || isClosed) return;
-    emit(DashboardReady(
-      workspaces: _workspaces,
-      isDemo: repository.isDemo,
-      summary: DashboardSummary.build(
-        workspace: ws,
-        tasks: tasks,
-        currentUserId: userId,
-        now: clock(),
+    emit(
+      DashboardReady(
+        workspaces: _workspaces,
+        isDemo: repository.isDemo,
+        summary: DashboardSummary.build(workspace: ws, tasks: tasks, currentUserId: userId, now: clock()),
       ),
-    ));
+    );
   }
 }

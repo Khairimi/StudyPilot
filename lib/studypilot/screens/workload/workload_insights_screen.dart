@@ -31,25 +31,25 @@ class WorkloadInsightsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => WorkloadCubit(repository: repository, userId: userId, clock: clock)
-        ..load(workspaceId: workspaceId),
+      create: (_) =>
+          WorkloadCubit(repository: repository, userId: userId, clock: clock)..load(workspaceId: workspaceId),
       child: Scaffold(
         appBar: AppBar(title: const Text('Workload Insights')),
         body: BlocBuilder<WorkloadCubit, WorkloadState>(
           builder: (context, state) => switch (state) {
             WorkloadLoading() => const Center(child: CircularProgressIndicator()),
             WorkloadError(:final message) => SpEmptyState(
-                icon: Icons.cloud_off_rounded,
-                title: 'Something went wrong',
-                message: message,
-                actionLabel: 'Try again',
-                onAction: () => context.read<WorkloadCubit>().load(workspaceId: workspaceId),
-              ),
+              icon: Icons.cloud_off_rounded,
+              title: 'Something went wrong',
+              message: message,
+              actionLabel: 'Try again',
+              onAction: () => context.read<WorkloadCubit>().load(workspaceId: workspaceId),
+            ),
             WorkloadNoWorkspaces() => const SpEmptyState(
-                icon: Icons.groups_outlined,
-                title: 'No workspaces yet',
-                message: 'Join a team workspace to see workload insights.',
-              ),
+              icon: Icons.groups_outlined,
+              title: 'No workspaces yet',
+              message: 'Join a team workspace to see workload insights.',
+            ),
             WorkloadReady() => _ReadyView(state: state, userId: userId),
           },
         ),
@@ -74,44 +74,43 @@ class _ReadyView extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(SpSpacing.lg, SpSpacing.md, SpSpacing.lg, SpSpacing.xxl),
       children: [
         WorkspaceSelector(workspaces: s.workspaces, selected: s.workspace, onSelected: cubit.selectWorkspace),
-        if (s.isDemo) ...[
-          const SizedBox(height: SpSpacing.sm),
-          const DemoDataBanner(),
-        ],
+        if (s.isDemo) ...[const SizedBox(height: SpSpacing.sm), const DemoDataBanner()],
         const SizedBox(height: SpSpacing.lg),
-        LayoutBuilder(builder: (context, c) {
-          const gap = SpSpacing.md;
-          final columns = c.maxWidth >= 640 ? 3 : 2;
-          final w = (c.maxWidth - gap * (columns - 1)) / columns;
-          final tiles = [
-            KpiTile(
-              icon: Icons.warning_amber_rounded,
-              label: 'Conflicts',
-              value: '${s.conflicts.length}',
-              caption: '$high high severity',
-              tone: s.conflicts.isEmpty ? SpTone.success(context) : SpTone.danger(context),
-            ),
-            KpiTile(
-              icon: Icons.battery_alert_outlined,
-              label: 'Over capacity',
-              value: '${s.membersOverCapacity}',
-              caption: 'of ${s.workloads.length} members',
-              tone: s.membersOverCapacity == 0 ? SpTone.neutral(context) : SpTone.warning(context),
-            ),
-            KpiTile(
-              icon: Icons.schedule_rounded,
-              label: 'Team load',
-              value: hoursText(s.teamHours),
-              caption: 'of ${hoursText(s.teamCapacity)} capacity',
-              tone: SpTone.brand(context),
-            ),
-          ];
-          return Wrap(
-            spacing: gap,
-            runSpacing: gap,
-            children: [for (final t in tiles) SizedBox(width: w, child: t)],
-          );
-        }),
+        LayoutBuilder(
+          builder: (context, c) {
+            const gap = SpSpacing.md;
+            final columns = c.maxWidth >= 640 ? 3 : 2;
+            final w = (c.maxWidth - gap * (columns - 1)) / columns;
+            final tiles = [
+              KpiTile(
+                icon: Icons.warning_amber_rounded,
+                label: 'Conflicts',
+                value: '${s.conflicts.length}',
+                caption: '$high high severity',
+                tone: s.conflicts.isEmpty ? SpTone.success(context) : SpTone.danger(context),
+              ),
+              KpiTile(
+                icon: Icons.battery_alert_outlined,
+                label: 'Over capacity',
+                value: '${s.membersOverCapacity}',
+                caption: 'of ${s.workloads.length} members',
+                tone: s.membersOverCapacity == 0 ? SpTone.neutral(context) : SpTone.warning(context),
+              ),
+              KpiTile(
+                icon: Icons.schedule_rounded,
+                label: 'Team load',
+                value: hoursText(s.teamHours),
+                caption: 'of ${hoursText(s.teamCapacity)} capacity',
+                tone: SpTone.brand(context),
+              ),
+            ];
+            return Wrap(
+              spacing: gap,
+              runSpacing: gap,
+              children: [for (final t in tiles) SizedBox(width: w, child: t)],
+            );
+          },
+        ),
         const SizedBox(height: SpSpacing.xl),
         SpSectionHeading(
           title: 'Conflicts',
@@ -188,8 +187,12 @@ class _ConflictCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(c.memberId == userId ? '$name (you)' : name,
-                        style: theme.textTheme.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(
+                      c.memberId == userId ? '$name (you)' : name,
+                      style: theme.textTheme.titleMedium,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     Text(typeLabel, style: theme.textTheme.bodySmall),
                   ],
                 ),
@@ -242,12 +245,8 @@ class _ConflictCard extends StatelessWidget {
           const SizedBox(height: SpSpacing.md),
           if (preview != null && state.isOwner)
             FilledButton.icon(
-              onPressed: () => showReassignmentReview(
-                context,
-                preview: preview,
-                memberName: state.memberName,
-                now: now,
-              ),
+              onPressed: () =>
+                  showReassignmentReview(context, preview: preview, memberName: state.memberName, now: now),
               icon: const Icon(Icons.rule_rounded, size: 18),
               label: const Text('Review reassignment'),
             )
@@ -257,8 +256,7 @@ class _ConflictCard extends StatelessWidget {
                 Icon(Icons.lock_outline_rounded, size: 16, color: theme.colorScheme.onSurfaceVariant),
                 const SizedBox(width: SpSpacing.xs),
                 Expanded(
-                  child: Text('Only the workspace owner can approve reassignments.',
-                      style: theme.textTheme.bodySmall),
+                  child: Text('Only the workspace owner can approve reassignments.', style: theme.textTheme.bodySmall),
                 ),
               ],
             ),
@@ -282,10 +280,10 @@ class _CapacityRow extends StatelessWidget {
     final (String label, SpTone tone) = w.isCongested
         ? ('Deadline crunch', SpTone.danger(context))
         : w.isOverCapacity
-            ? ('Over capacity', SpTone.warning(context))
-            : ratio >= 0.7
-                ? ('Near capacity', SpTone.info(context))
-                : ('Healthy', SpTone.success(context));
+        ? ('Over capacity', SpTone.warning(context))
+        : ratio >= 0.7
+        ? ('Near capacity', SpTone.info(context))
+        : ('Healthy', SpTone.success(context));
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -299,8 +297,12 @@ class _CapacityRow extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: Text(isMe ? '$name (you)' : name,
-                        style: theme.textTheme.labelLarge, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    child: Text(
+                      isMe ? '$name (you)' : name,
+                      style: theme.textTheme.labelLarge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   const SizedBox(width: SpSpacing.sm),
                   SpBadge(label: label, tone: tone),
@@ -310,7 +312,8 @@ class _CapacityRow extends StatelessWidget {
               SpProgressBar(
                 value: ratio,
                 color: spCapacityColor(ratio),
-                label: '${w.activeTasks.length} active · ${w.dueSoonTasks.length} due within '
+                label:
+                    '${w.activeTasks.length} active · ${w.dueSoonTasks.length} due within '
                     '${WorkloadEngine.congestionWindowDays} days',
                 valueText: '${hoursText(w.activeHours)} / ${hoursText(w.thresholdHours)}',
               ),

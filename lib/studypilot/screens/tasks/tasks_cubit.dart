@@ -54,9 +54,8 @@ class TasksReady extends TasksState {
     return 'No project';
   }
 
-  String memberName(String? userId) => userId == null
-      ? 'Unassigned'
-      : workspace.memberById(userId)?.displayName ?? 'Former member';
+  String memberName(String? userId) =>
+      userId == null ? 'Unassigned' : workspace.memberById(userId)?.displayName ?? 'Former member';
 }
 
 /// Tasks tab state: workspace, filters and view mode. Read-only: edits are
@@ -72,8 +71,8 @@ class TasksCubit extends Cubit<TasksState> {
   int _request = 0;
 
   TasksCubit({required this.repository, required this.userId, DateTime Function()? clock})
-      : clock = clock ?? DateTime.now,
-        super(const TasksLoading());
+    : clock = clock ?? DateTime.now,
+      super(const TasksLoading());
 
   Future<void> load({String? workspaceId}) async {
     final req = ++_request;
@@ -133,13 +132,13 @@ class TasksCubit extends Cubit<TasksState> {
   }
 
   TasksReady _ready(Workspace ws, List<Project> projects, List<TeamTask> tasks) => TasksReady(
-        workspaces: _workspaces,
-        workspace: ws,
-        projects: projects,
-        allTasks: tasks,
-        visible: _filter.apply(tasks, userId, clock()),
-        filter: _filter,
-        mode: _mode,
-        isDemo: repository.isDemo,
-      );
+    workspaces: _workspaces,
+    workspace: ws,
+    projects: projects,
+    allTasks: tasks,
+    visible: _filter.apply(tasks, userId, clock()),
+    filter: _filter,
+    mode: _mode,
+    isDemo: repository.isDemo,
+  );
 }

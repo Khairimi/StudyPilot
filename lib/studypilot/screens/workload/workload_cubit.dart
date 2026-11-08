@@ -39,8 +39,7 @@ class WorkloadReady extends WorkloadState {
     required this.isDemo,
   });
 
-  String memberName(String? id) =>
-      id == null ? 'Unassigned' : workspace.memberById(id)?.displayName ?? 'Former member';
+  String memberName(String? id) => id == null ? 'Unassigned' : workspace.memberById(id)?.displayName ?? 'Former member';
 
   TeamTask? taskById(String id) => tasks.where((t) => t.id == id).firstOrNull;
 
@@ -60,8 +59,8 @@ class WorkloadCubit extends Cubit<WorkloadState> {
   int _request = 0;
 
   WorkloadCubit({required this.repository, required this.userId, DateTime Function()? clock})
-      : clock = clock ?? DateTime.now,
-        super(const WorkloadLoading());
+    : clock = clock ?? DateTime.now,
+      super(const WorkloadLoading());
 
   Future<void> load({String? workspaceId}) async {
     final req = ++_request;
@@ -96,14 +95,16 @@ class WorkloadCubit extends Cubit<WorkloadState> {
     final tasks = await repository.tasksFor(ws.id);
     if (req != _request || isClosed) return;
     final now = clock();
-    emit(WorkloadReady(
-      workspaces: _workspaces,
-      workspace: ws,
-      tasks: tasks,
-      workloads: WorkloadEngine.memberWorkloads(ws, tasks, now),
-      conflicts: WorkloadEngine.detectConflicts(ws, tasks, now),
-      isOwner: ws.isOwner(userId),
-      isDemo: repository.isDemo,
-    ));
+    emit(
+      WorkloadReady(
+        workspaces: _workspaces,
+        workspace: ws,
+        tasks: tasks,
+        workloads: WorkloadEngine.memberWorkloads(ws, tasks, now),
+        conflicts: WorkloadEngine.detectConflicts(ws, tasks, now),
+        isOwner: ws.isOwner(userId),
+        isDemo: repository.isDemo,
+      ),
+    );
   }
 }
