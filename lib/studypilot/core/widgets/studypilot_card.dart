@@ -30,14 +30,20 @@ class StudyPilotCard extends StatelessWidget {
 
     Widget content = Padding(padding: padding, child: child);
     if (accentColor != null) {
-      content = IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(width: 4, color: accentColor),
-            Expanded(child: content),
-          ],
-        ),
+      // The card sizes to its content; the stripe just fills the left edge.
+      // (IntrinsicHeight estimates can be a few pixels short for wrapped
+      // text on web, which overflowed the card at the bottom.)
+      content = Stack(
+        children: [
+          Padding(padding: const EdgeInsets.only(left: 4), child: content),
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 4,
+            child: ColoredBox(color: accentColor!),
+          ),
+        ],
       );
     }
 

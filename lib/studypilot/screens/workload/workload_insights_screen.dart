@@ -8,7 +8,7 @@ import 'package:study_app/studypilot/logic/workload_engine.dart';
 import 'package:study_app/studypilot/models/models.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_format.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_sections.dart'
-    show DemoDataBanner, KpiTile, WorkspaceSelector;
+    show DemoDataBanner, KpiTile, WorkspaceSelector, kpiTileWidth;
 import 'package:study_app/studypilot/screens/workload/reassignment_preview.dart';
 import 'package:study_app/studypilot/screens/workload/reassignment_review_sheet.dart';
 import 'package:study_app/studypilot/screens/workload/workload_cubit.dart';
@@ -87,7 +87,10 @@ class _ReadyView extends StatelessWidget {
           builder: (context, c) {
             const gap = SpSpacing.md;
             final columns = c.maxWidth >= 640 ? 3 : 2;
-            final w = (c.maxWidth - gap * (columns - 1)) / columns;
+            final w = kpiTileWidth(c.maxWidth, columns, gap: gap);
+            // On two columns Team load sits alone on its row: give it the
+            // full width so its explanation stays readable.
+            final teamLoadWidth = columns == 2 ? kpiTileWidth(c.maxWidth, 1) : w;
             final tiles = [
               KpiTile(
                 icon: Icons.warning_amber_rounded,
@@ -108,13 +111,17 @@ class _ReadyView extends StatelessWidget {
                 label: 'Team load',
                 value: hoursText(s.teamHours),
                 caption: 'open-task hours of ${hoursText(s.teamCapacity)} combined limit',
+                captionMaxLines: 3,
                 tone: SpTone.brand(context),
               ),
             ];
             return Wrap(
               spacing: gap,
               runSpacing: gap,
-              children: [for (final t in tiles) SizedBox(width: w, child: t)],
+              children: [
+                for (final (i, t) in tiles.indexed)
+                  SizedBox(width: i == tiles.length - 1 ? teamLoadWidth : w, child: t),
+              ],
             );
           },
         ),

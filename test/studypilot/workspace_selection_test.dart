@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
 import 'package:study_app/studypilot/core/sp_user.dart';
@@ -146,6 +147,47 @@ void main() {
       await openTab(tester, 'Tasks');
       expect(visibleSelectorText(cscName), findsOneWidget);
     });
+
+    // QA: 320px, Workload Insights, switch workspace, Back → red screen
+    // ('_dependents.isEmpty'). Cause: a layout pass at near-zero width made
+    // the KPI tile width negative (BoxConstraints w=-6) inside a
+    // LayoutBuilder, which left the tree inconsistent until the route popped.
+    testWidgets('Back from Workload after a near-zero-width layout and a switch', (tester) async {
+      await pumpShell(tester, size: const Size(320, 844));
+      await tester.tap(find.text('View workload'));
+      await tester.pumpAndSettle();
+
+      tester.view.physicalSize = const Size(30, 20000); // e.g. mid browser resize
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      tester.view.physicalSize = const Size(320, 844);
+      await tester.pumpAndSettle();
+
+      await switchWorkspace(tester, cscName);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.widgetWithText(AppBar, 'Dashboard'), findsOneWidget);
+      expect(visibleSelectorText(cscName), findsOneWidget);
+    });
+
+    for (final width in [320.0, 390.0]) {
+      testWidgets('${width.toInt()}px: Workload lays out cleanly and Team load text is not cut off', (tester) async {
+        await pumpShell(tester, size: Size(width, 844));
+        await tester.tap(find.text('View workload'));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+
+        final caption = find.textContaining('combined limit');
+        expect(caption, findsOneWidget);
+        final paragraph = tester.renderObject<RenderParagraph>(caption);
+        expect(paragraph.didExceedMaxLines, isFalse);
+
+        await switchWorkspace(tester, cscName);
+        expect(tester.takeException(), isNull);
+        expect(tester.renderObject<RenderParagraph>(find.textContaining('combined limit')).didExceedMaxLines, isFalse);
+      });
+    }
 
     testWidgets('project card opens Tasks filtered by that project', (tester) async {
       await pumpShell(tester, size: const Size(390, 1600));
