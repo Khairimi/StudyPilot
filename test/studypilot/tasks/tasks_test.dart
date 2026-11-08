@@ -219,7 +219,7 @@ void main() {
 
       await tester.tap(find.text('Assign'));
       await tester.pumpAndSettle();
-      expect(find.text('Current load vs 15h capacity'), findsOneWidget);
+      expect(find.text('Open-task hours (any due date) vs 15h limit'), findsOneWidget);
       await tester.tap(find.widgetWithText(ListTile, 'Mei Ling'));
       await tester.pumpAndSettle();
       expect(find.textContaining('was not reassigned to Mei Ling'), findsOneWidget);

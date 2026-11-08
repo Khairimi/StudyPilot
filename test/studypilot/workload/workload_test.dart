@@ -207,6 +207,23 @@ void main() {
       expect(find.text('Healthy'), findsWidgets);
     });
 
+    testWidgets('alert types are explained and the capacity basis has no time period', (tester) async {
+      // Ana: 3 tasks due tomorrow (congestion) totalling 18h (over the 15h limit).
+      await pumpInsights(tester,
+          repo: FixedRepo(team(), [for (final id in ['a1', 'a2', 'a3']) job(id, 'ana', 6, dueIn: 1)]));
+      expect(find.text('Two different alerts'), findsOneWidget);
+      expect(find.textContaining('counts tasks: 3 or more open tasks due within 2 days'), findsOneWidget);
+      expect(find.textContaining('adds up hours: estimated hours of all open tasks, any due date'), findsOneWidget);
+      expect(find.text('Estimated hours of all open tasks (any due date) vs a 15h limit each'), findsOneWidget);
+      expect(find.textContaining('not per week or per day'), findsWidgets);
+      expect(find.text('too many tasks due soon'), findsOneWidget);
+      // One conflict card (congestion first), but both badges on Ana's capacity row.
+      expect(find.text('Deadline crunch'), findsOneWidget);
+      expect(find.text('Over capacity'), findsWidgets);
+      expect(find.text('18h / 15h'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('no safe target: explained, no review button even for owner', (tester) async {
       await pumpInsights(tester, repo: noRoomRepo());
       expect(find.textContaining('No teammate has spare capacity'), findsOneWidget);

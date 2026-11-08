@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
 import 'package:study_app/studypilot/core/workspace_selection.dart';
 import 'package:study_app/studypilot/data/workspace_repository.dart';
+import 'package:study_app/studypilot/logic/task_math.dart';
 import 'package:study_app/studypilot/logic/workload_engine.dart';
 import 'package:study_app/studypilot/models/models.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_format.dart';
@@ -106,7 +107,7 @@ class _ReadyView extends StatelessWidget {
                 icon: Icons.schedule_rounded,
                 label: 'Team load',
                 value: hoursText(s.teamHours),
-                caption: 'of ${hoursText(s.teamCapacity)} capacity',
+                caption: 'open-task hours of ${hoursText(s.teamCapacity)} combined limit',
                 tone: SpTone.brand(context),
               ),
             ];
@@ -125,6 +126,8 @@ class _ReadyView extends StatelessWidget {
               : 'Only workspace owners can review reassignments',
           icon: Icons.report_gmailerrorred_rounded,
         ),
+        _AlertTypesCard(limitHours: s.workspace.workloadThresholdHours),
+        const SizedBox(height: SpSpacing.md),
         if (s.conflicts.isEmpty)
           StudyPilotCard(
             child: Row(
@@ -143,7 +146,7 @@ class _ReadyView extends StatelessWidget {
         const SizedBox(height: SpSpacing.lg),
         SpSectionHeading(
           title: 'Member capacity',
-          subtitle: 'Active hours vs ${hoursText(s.workspace.workloadThresholdHours)} each',
+          subtitle: capacityBasisText(s.workspace.workloadThresholdHours),
           icon: Icons.monitor_heart_outlined,
         ),
         StudyPilotCard(
@@ -177,7 +180,9 @@ class _ConflictCard extends StatelessWidget {
     final tone = c.severity.tone(context);
     final name = state.memberName(c.memberId);
     final preview = ReassignmentPreview.of(c, state.workloads, state.tasks);
-    final typeLabel = c.type == ConflictType.deadlineCongestion ? 'Deadline congestion' : 'Capacity overload';
+    final congestion = c.type == ConflictType.deadlineCongestion;
+    final typeLabel = congestion ? 'Deadline congestion' : 'Capacity overload';
+    final typeHint = congestion ? 'too many tasks due soon' : 'too many open-task hours';
 
     return StudyPilotCard(
       accentColor: tone.foreground,
@@ -199,7 +204,8 @@ class _ConflictCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    Text(typeLabel, style: theme.textTheme.bodySmall),
+                    Text(typeLabel, style: theme.textTheme.labelLarge),
+                    Text(typeHint, style: theme.textTheme.bodySmall),
                   ],
                 ),
               ),
@@ -283,10 +289,13 @@ class _CapacityRow extends StatelessWidget {
     final theme = Theme.of(context);
     final w = workload;
     final ratio = w.loadRatio;
-    final (String label, SpTone tone) = w.isCongested
-        ? ('Deadline crunch', SpTone.danger(context))
-        : w.isOverCapacity
-        ? ('Over capacity', SpTone.warning(context))
+    // The two alerts are independent, so a member can show both badges.
+    final badges = <(String, SpTone)>[
+      if (w.isCongested) ('Deadline crunch', SpTone.danger(context)),
+      if (w.isOverCapacity) ('Over capacity', SpTone.warning(context)),
+    ];
+    final (String label, SpTone tone) = badges.isNotEmpty
+        ? badges.first
         : ratio >= 0.7
         ? ('Near capacity', SpTone.info(context))
         : ('Healthy', SpTone.success(context));
@@ -314,6 +323,14 @@ class _CapacityRow extends StatelessWidget {
                   SpBadge(label: label, tone: tone),
                 ],
               ),
+              for (final (extra, extraTone) in badges.skip(1))
+                Padding(
+                  padding: const EdgeInsets.only(top: SpSpacing.xs),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: SpBadge(label: extra, tone: extraTone),
+                  ),
+                ),
               const SizedBox(height: SpSpacing.xs + 2),
               SpProgressBar(
                 value: ratio,
@@ -337,11 +354,13 @@ class _HowItWorks extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const rules = [
+    final rules = [
       'Deadline congestion: ${WorkloadEngine.congestionTaskCount} or more active tasks due within '
           '${WorkloadEngine.congestionWindowDays} days (including overdue) is high severity.',
-      'Capacity overload: active hours at or above the workspace capacity is medium severity; '
-          '1.5× capacity is high.',
+      'Capacity overload: the estimated hours of all of a member\'s open (not completed) tasks, whatever '
+          'their due dates, at or above the workspace limit is medium severity; 1.5× the limit is high. '
+          'Tasks without an estimate count as ${hoursText(kDefaultTaskHours)}. The limit is not per week or per day.',
+      'A member can trigger both alerts; deadline congestion is then shown first.',
       'Suggestions move the least urgent task to the least loaded teammate who stays under capacity.',
       'Nothing is reassigned automatically. Only owners can approve a reassignment.',
     ];
@@ -362,6 +381,67 @@ class _HowItWorks extends StatelessWidget {
                 ],
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// What the capacity limit measures. The engine sums the estimated hours of
+/// every open (not completed) task, whatever its due date; there is no
+/// weekly or daily period.
+String capacityBasisText(double limitHours) =>
+    'Estimated hours of all open tasks (any due date) vs a ${hoursText(limitHours)} limit each';
+
+/// Explains that the two alert types measure different things.
+class _AlertTypesCard extends StatelessWidget {
+  final double limitHours;
+  const _AlertTypesCard({required this.limitHours});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Widget item(IconData icon, SpTone tone, String title, String body) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: SpSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: tone.foreground),
+          const SizedBox(width: SpSpacing.sm),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: '$title: ', style: theme.textTheme.labelLarge),
+                  TextSpan(text: body),
+                ],
+              ),
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+        ],
+      ),
+    );
+    return StudyPilotCard(
+      padding: const EdgeInsets.all(SpSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Two different alerts', style: theme.textTheme.titleSmall),
+          item(
+            Icons.event_busy_rounded,
+            SpTone.danger(context),
+            'Deadline congestion',
+            'counts tasks: ${WorkloadEngine.congestionTaskCount} or more open tasks due within '
+                '${WorkloadEngine.congestionWindowDays} days (including overdue), regardless of hours.',
+          ),
+          item(
+            Icons.battery_alert_outlined,
+            SpTone.warning(context),
+            'Capacity overload',
+            'adds up hours: estimated hours of all open tasks, any due date, at or above the '
+                '${hoursText(limitHours)} limit. The limit is not per week or per day.',
+          ),
         ],
       ),
     );
