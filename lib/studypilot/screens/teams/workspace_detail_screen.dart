@@ -13,7 +13,17 @@ class WorkspaceDetailScreen extends StatelessWidget {
   final String userId;
   final bool isDemo;
 
-  const WorkspaceDetailScreen({super.key, required this.overview, required this.userId, required this.isDemo});
+  /// Opens the Tasks tab filtered by a project. When null, project cards
+  /// are not interactive.
+  final ValueChanged<String>? onOpenProject;
+
+  const WorkspaceDetailScreen({
+    super.key,
+    required this.overview,
+    required this.userId,
+    required this.isDemo,
+    this.onOpenProject,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +53,7 @@ class WorkspaceDetailScreen extends StatelessWidget {
             const StudyPilotCard(child: Text('No projects yet.'))
           else
             for (final p in overview.projects) ...[
-              _ProjectCard(project: p, overview: overview),
+              _ProjectCard(project: p, overview: overview, onOpen: onOpenProject),
               const SizedBox(height: SpSpacing.sm),
             ],
           const SizedBox(height: SpSpacing.xl),
@@ -133,7 +143,8 @@ class _AboutCard extends StatelessWidget {
 class _ProjectCard extends StatelessWidget {
   final Project project;
   final WorkspaceOverview overview;
-  const _ProjectCard({required this.project, required this.overview});
+  final ValueChanged<String>? onOpen;
+  const _ProjectCard({required this.project, required this.overview, this.onOpen});
 
   @override
   Widget build(BuildContext context) {
@@ -145,7 +156,14 @@ class _ProjectCard extends StatelessWidget {
       ProjectStatus.onHold => (label: 'On hold', tone: SpTone.warning(context)),
       ProjectStatus.completed => (label: 'Completed', tone: SpTone.success(context)),
     };
+    final open = onOpen;
     return StudyPilotCard(
+      onTap: open == null
+          ? null
+          : () {
+              Navigator.of(context).pop();
+              open(project.id);
+            },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -161,6 +179,16 @@ class _ProjectCard extends StatelessWidget {
           ],
           const SizedBox(height: SpSpacing.md),
           SpProgressBar(value: overview.progressOf(project.id), label: '$done of ${tasks.length} tasks done'),
+          if (open != null) ...[
+            const SizedBox(height: SpSpacing.sm),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text('View tasks', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary)),
+                Icon(Icons.chevron_right_rounded, size: 18, color: theme.colorScheme.primary),
+              ],
+            ),
+          ],
         ],
       ),
     );

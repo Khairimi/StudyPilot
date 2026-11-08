@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
 import 'package:study_app/studypilot/core/sp_user.dart';
+import 'package:study_app/studypilot/core/workspace_selection.dart';
 import 'package:study_app/studypilot/data/workspace_repository.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_cubit.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_format.dart';
@@ -16,7 +17,10 @@ class DashboardTab extends StatelessWidget {
   final String? userName;
   final DateTime Function()? clock;
 
-  const DashboardTab({super.key, this.repository, this.userId, this.userName, this.clock});
+  /// Shared selection; defaults to the shell's (none when standalone).
+  final WorkspaceSelectionCubit? selection;
+
+  const DashboardTab({super.key, this.repository, this.userId, this.userName, this.clock, this.selection});
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +31,12 @@ class DashboardTab extends StatelessWidget {
     final repo = repository ?? context.read<WorkspaceRepository>();
 
     return BlocProvider(
-      create: (_) => DashboardCubit(repository: repo, userId: uid, clock: clock)..load(),
+      create: (_) => DashboardCubit(
+        repository: repo,
+        userId: uid,
+        clock: clock,
+        selection: selection ?? context.read<WorkspaceSelectionCubit?>(),
+      )..load(),
       child: _DashboardView(userName: name),
     );
   }
@@ -87,6 +96,7 @@ class _ReadyView extends StatelessWidget {
                 userId: cubit.userId,
                 workspaceId: s.workspace.id,
                 clock: cubit.clock,
+                selection: cubit.selection,
               ),
             ),
           );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
 import 'package:study_app/studypilot/core/sp_user.dart';
+import 'package:study_app/studypilot/core/workspace_selection.dart';
 import 'package:study_app/studypilot/data/workspace_repository.dart';
 import 'package:study_app/studypilot/logic/task_permissions.dart';
 import 'package:study_app/studypilot/models/models.dart';
@@ -19,14 +20,22 @@ class TasksTab extends StatelessWidget {
   final String? userId;
   final DateTime Function()? clock;
 
-  const TasksTab({super.key, this.repository, this.userId, this.clock});
+  /// Shared selection; defaults to the shell's (none when standalone).
+  final WorkspaceSelectionCubit? selection;
+
+  const TasksTab({super.key, this.repository, this.userId, this.clock, this.selection});
 
   @override
   Widget build(BuildContext context) {
     final uid = userId ?? SpUserScope.of(context).uid;
     final repo = repository ?? context.read<WorkspaceRepository>();
     return BlocProvider(
-      create: (_) => TasksCubit(repository: repo, userId: uid, clock: clock)..load(),
+      create: (_) => TasksCubit(
+        repository: repo,
+        userId: uid,
+        clock: clock,
+        selection: selection ?? context.read<WorkspaceSelectionCubit?>(),
+      )..load(),
       child: _TasksView(userId: uid),
     );
   }
@@ -166,6 +175,16 @@ class _ReadyView extends StatelessWidget {
                       TextButton(onPressed: cubit.clearFilters, child: const Text('Clear filters')),
                   ],
                 ),
+                if (state.filter.projectId case final projectId?)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: InputChip(
+                      avatar: const Icon(Icons.folder_outlined, size: 18),
+                      label: Text('Project: ${state.projectName(projectId)}', overflow: TextOverflow.ellipsis),
+                      deleteButtonTooltipMessage: 'Show all projects',
+                      onDeleted: () => cubit.setFilter(state.filter.copyWith(projectId: null)),
+                    ),
+                  ),
               ],
             ),
           ),
