@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
 import 'package:study_app/studypilot/core/sp_user.dart';
 import 'package:study_app/studypilot/data/workspace_repository.dart';
+import 'package:study_app/studypilot/logic/task_permissions.dart';
 import 'package:study_app/studypilot/models/models.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_sections.dart'
     show DemoDataBanner, WorkspaceSelector;
@@ -87,17 +88,19 @@ class _ReadyView extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showTaskFormSheet(
-          context,
-          workspace: state.workspace,
-          projects: state.projects,
-          currentUserId: userId,
-          now: now,
-        ),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('New task'),
-      ),
+      floatingActionButton: !TaskPermissions(state.workspace, userId).canCreate
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => showTaskFormSheet(
+                context,
+                workspace: state.workspace,
+                projects: state.projects,
+                currentUserId: userId,
+                now: now,
+              ),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('New task'),
+            ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

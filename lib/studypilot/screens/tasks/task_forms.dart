@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
 import 'package:study_app/studypilot/logic/priority_engine.dart';
 import 'package:study_app/studypilot/logic/task_math.dart';
+import 'package:study_app/studypilot/logic/task_permissions.dart';
 import 'package:study_app/studypilot/logic/workload_engine.dart';
 import 'package:study_app/studypilot/models/models.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_format.dart';
@@ -9,7 +10,19 @@ import 'package:study_app/studypilot/screens/tasks/task_filter.dart';
 
 /// Create / edit / status / assign sheets. All are demo previews: input is
 /// validated and the Smart Priority is previewed, but NOTHING is saved and
-/// the user is told so.
+/// the user is told so. Each entry point also checks [TaskPermissions], so
+/// a member cannot reach an action they are not allowed to take.
+
+const kOwnerOnlyAssignMessage = 'Only the workspace owner can assign or reassign tasks.';
+const kOwnerOnlyEditMessage = 'Only the workspace owner can edit task details.';
+const kNoProgressMessage = 'Only the assignee or the workspace owner can update this task.';
+const kNotMemberMessage = 'Only workspace members can create tasks.';
+
+Future<void> _deny(BuildContext context, String message) async {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(message)));
+}
 
 Future<void> _sheet(BuildContext context, Widget child) => showModalBottomSheet<void>(
       context: context,
@@ -30,19 +43,33 @@ Future<void> showTaskFormSheet(
   required String currentUserId,
   required DateTime now,
   TeamTask? existing,
-}) =>
-    _sheet(
-      context,
-      _TaskForm(
-        workspace: workspace,
-        projects: projects,
-        currentUserId: currentUserId,
-        now: now,
-        existing: existing,
-      ),
-    );
+}) {
+  final perms = TaskPermissions(workspace, currentUserId);
+  if (existing == null ? !perms.canCreate : !perms.canEditDetails(existing)) {
+    return _deny(context, existing == null ? kNotMemberMessage : kOwnerOnlyEditMessage);
+  }
+  return _sheet(
+    context,
+    _TaskForm(
+      workspace: workspace,
+      projects: projects,
+      currentUserId: currentUserId,
+      now: now,
+      existing: existing,
+    ),
+  );
+}
 
-Future<void> showStatusSheet(BuildContext context, {required TeamTask task}) => _sheet(
+Future<void> showStatusSheet(
+  BuildContext context, {
+  required TeamTask task,
+  required Workspace workspace,
+  required String currentUserId,
+}) {
+  if (!TaskPermissions(workspace, currentUserId).canUpdateProgress(task)) {
+    return _deny(context, kNoProgressMessage);
+  }
+  return _sheet(
       context,
       Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -67,14 +94,21 @@ Future<void> showStatusSheet(BuildContext context, {required TeamTask task}) => 
         ],
       ),
     );
+}
 
+/// Owner-only. Members never reach this sheet, so workload reassignment
+/// cannot bypass the owner.
 Future<void> showAssignSheet(
   BuildContext context, {
   required TeamTask task,
   required Workspace workspace,
   required List<TeamTask> allTasks,
+  required String currentUserId,
   required DateTime now,
 }) {
+  if (!TaskPermissions(workspace, currentUserId).canAssign(task)) {
+    return _deny(context, kOwnerOnlyAssignMessage);
+  }
   final loads = {
     for (final w in WorkloadEngine.memberWorkloads(workspace, allTasks, now)) w.userId: w,
   };
@@ -165,7 +199,11 @@ class _TaskFormState extends State<_TaskForm> {
   }
   late String? _projectId =
       widget.existing?.projectId ?? (widget.projects.isEmpty ? null : widget.projects.first.id);
-  late String? _assigneeId = widget.existing?.assigneeId ?? widget.currentUserId;
+  late final bool _canChooseAssignee =
+      TaskPermissions(widget.workspace, widget.currentUserId).canChooseAssignee;
+  // Members' new tasks are always assigned to themselves.
+  late String? _assigneeId =
+      _canChooseAssignee ? (widget.existing?.assigneeId ?? widget.currentUserId) : widget.currentUserId;
   late SpPriority _priority = widget.existing?.priority ?? SpPriority.medium;
   late SpTaskStatus _status = widget.existing?.status ?? SpTaskStatus.todo;
   late DateTime? _due = widget.existing?.dueAt;
@@ -260,17 +298,31 @@ class _TaskFormState extends State<_TaskForm> {
             onChanged: (v) => setState(() => _projectId = v),
           ),
           const SizedBox(height: SpSpacing.md),
-          DropdownButtonFormField<String?>(
-            initialValue: _assigneeId,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Assignee'),
-            items: [
-              for (final m in widget.workspace.members)
-                DropdownMenuItem(value: m.userId, child: Text(m.displayName, overflow: TextOverflow.ellipsis)),
-              const DropdownMenuItem(value: null, child: Text('Unassigned')),
-            ],
-            onChanged: (v) => setState(() => _assigneeId = v),
-          ),
+          if (_canChooseAssignee)
+            DropdownButtonFormField<String?>(
+              initialValue: _assigneeId,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Assignee'),
+              items: [
+                for (final m in widget.workspace.members)
+                  DropdownMenuItem(value: m.userId, child: Text(m.displayName, overflow: TextOverflow.ellipsis)),
+                const DropdownMenuItem(value: null, child: Text('Unassigned')),
+              ],
+              onChanged: (v) => setState(() => _assigneeId = v),
+            )
+          else
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Assignee',
+                helperText: 'Only the workspace owner can assign tasks to others.',
+                helperMaxLines: 2,
+              ),
+              child: Text(
+                '${widget.workspace.memberById(widget.currentUserId)?.displayName ?? 'You'} (you)',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           const SizedBox(height: SpSpacing.md),
           Text('Priority', style: theme.textTheme.labelLarge),
           const SizedBox(height: SpSpacing.xs),
