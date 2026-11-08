@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:study_app/providers/theme_provider.dart';
 import 'package:study_app/database/hive_service.dart';
+import 'package:study_app/screens/global/export_feedback.dart';
 import 'package:study_app/services/data_export_service.dart';
 import 'package:study_app/services/data_import_service.dart';
 import 'package:study_app/providers/subject_provider.dart';
@@ -105,7 +106,8 @@ class _SettingsPageState extends State<SettingsPage> {
               title: const Text('Export to File'),
               onTap: () async {
                 Navigator.pop(ctx);
-                await DataExportService.exportToFile();
+                final result = await DataExportService.exportToFile();
+                if (mounted) showExportResult(context, result);
               },
             ),
           ],
