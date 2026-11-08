@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
 import 'package:study_app/studypilot/logic/priority_engine.dart';
 import 'package:study_app/studypilot/logic/task_math.dart';
+import 'package:study_app/studypilot/logic/task_permissions.dart';
 import 'package:study_app/studypilot/models/models.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_format.dart';
 import 'package:study_app/studypilot/screens/tasks/task_forms.dart';
@@ -44,23 +45,33 @@ class TaskDetailScreen extends StatelessWidget {
     final result = PriorityEngine.score(task, now);
     final activity = [...task.activity]..sort((a, b) => b.timestamp.compareTo(a.timestamp));
     final done = task.subtasks.where((s) => s.completed).length;
+    final perms = TaskPermissions(workspace, currentUserId);
+    final canEdit = perms.canEditDetails(task);
+    final canProgress = perms.canUpdateProgress(task);
+    final canAssign = perms.canAssign(task);
+    final permissionNote = canEdit
+        ? null
+        : canProgress
+            ? 'You can update the status and subtasks of your task. Only the workspace owner can edit details or reassign it.'
+            : 'View only: only the assignee or the workspace owner can update this task.';
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Task details'),
         actions: [
-          IconButton(
-            tooltip: 'Edit task',
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () => showTaskFormSheet(
-              context,
-              workspace: workspace,
-              projects: projects,
-              currentUserId: currentUserId,
-              now: now,
-              existing: task,
+          if (canEdit)
+            IconButton(
+              tooltip: 'Edit task',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => showTaskFormSheet(
+                context,
+                workspace: workspace,
+                projects: projects,
+                currentUserId: currentUserId,
+                now: now,
+                existing: task,
+              ),
             ),
-          ),
         ],
       ),
       body: ListView(
@@ -82,27 +93,47 @@ class TaskDetailScreen extends StatelessWidget {
               SpStatusBadge(status: task.status),
             ],
           ),
-          const SizedBox(height: SpSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => showStatusSheet(context, task: task),
-                  icon: const Icon(Icons.swap_horiz_rounded, size: 18),
-                  label: const Text('Status'),
-                ),
-              ),
-              const SizedBox(width: SpSpacing.sm),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => showAssignSheet(context,
-                      task: task, workspace: workspace, allTasks: allTasks, now: now),
-                  icon: const Icon(Icons.person_add_alt_outlined, size: 18),
-                  label: const Text('Assign'),
-                ),
-              ),
-            ],
-          ),
+          if (canProgress || canAssign) ...[
+            const SizedBox(height: SpSpacing.md),
+            Row(
+              children: [
+                if (canProgress)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () =>
+                          showStatusSheet(context, task: task, workspace: workspace, currentUserId: currentUserId),
+                      icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                      label: const Text('Status'),
+                    ),
+                  ),
+                if (canProgress && canAssign) const SizedBox(width: SpSpacing.sm),
+                if (canAssign)
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => showAssignSheet(context,
+                          task: task,
+                          workspace: workspace,
+                          allTasks: allTasks,
+                          currentUserId: currentUserId,
+                          now: now),
+                      icon: const Icon(Icons.person_add_alt_outlined, size: 18),
+                      label: const Text('Assign'),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          if (permissionNote != null) ...[
+            const SizedBox(height: SpSpacing.md),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.lock_outline_rounded, size: 18, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: SpSpacing.sm),
+                Expanded(child: Text(permissionNote, style: theme.textTheme.bodySmall)),
+              ],
+            ),
+          ],
           const SizedBox(height: SpSpacing.lg),
           StudyPilotCard(
             child: Column(
@@ -195,7 +226,10 @@ class TaskDetailScreen extends StatelessWidget {
                           title: Text(s.title),
                           controlAffinity: ListTileControlAffinity.leading,
                           // Demo: the checkbox does not change; the user is told why.
-                          onChanged: (_) => showDemoNotice(context, 'subtask "${s.title}" was not updated.'),
+                          // Disabled for users who may not update this task.
+                          onChanged: canProgress
+                              ? (_) => showDemoNotice(context, 'subtask "${s.title}" was not updated.')
+                              : null,
                         ),
                     ],
                   ),
