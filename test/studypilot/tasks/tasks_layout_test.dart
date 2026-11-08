@@ -52,6 +52,52 @@ void main() {
         expect(find.text('New task'), findsOneWidget);
       });
 
+      testWidgets('${width.toInt()}px: button comes back after switching Board/List', (tester) async {
+        await pumpTasks(tester, width);
+        await tester.drag(find.byType(Scrollable).last, const Offset(0, -300));
+        await tester.pumpAndSettle();
+        expect(find.text('New task'), findsNothing);
+
+        await tester.tap(find.byTooltip('Board view'));
+        await tester.pumpAndSettle();
+        expect(find.text('New task'), findsOneWidget);
+
+        // Hide it again in a board column, then go back to List.
+        await tester.drag(find.byType(TaskCard).first, const Offset(0, -300));
+        await tester.pumpAndSettle();
+        expect(find.text('New task'), findsNothing);
+        await tester.tap(find.byTooltip('List view'));
+        await tester.pumpAndSettle();
+        expect(find.text('New task'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('${width.toInt()}px: button comes back at the end of the list', (tester) async {
+        await pumpTasks(tester, width);
+        await tester.fling(find.byType(Scrollable).last, const Offset(0, -4000), 3000);
+        await tester.pumpAndSettle();
+        expect(find.text('New task'), findsOneWidget);
+        final fab = tester.getRect(find.byType(FloatingActionButton));
+        expect(tester.getRect(find.byType(TaskCard).last).bottom, lessThanOrEqualTo(fab.top));
+      });
+
+      testWidgets('${width.toInt()}px: button comes back after changing project filter', (tester) async {
+        await pumpTasks(tester, width);
+        await tester.drag(find.byType(Scrollable).last, const Offset(0, -300));
+        await tester.pumpAndSettle();
+        expect(find.text('New task'), findsNothing);
+
+        await tester.tap(find.byTooltip('Filters'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(ChoiceChip, 'Menu Relaunch'));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Apply'));
+        await tester.tap(find.text('Apply'));
+        await tester.pumpAndSettle();
+        expect(find.text('Project: Menu Relaunch'), findsOneWidget);
+        expect(find.text('New task'), findsOneWidget);
+      });
+
       testWidgets('${width.toInt()}px: board shows status tabs that scroll to columns', (tester) async {
         await pumpTasks(tester, width);
         await tester.tap(find.byTooltip('Board view'));

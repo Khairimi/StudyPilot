@@ -87,12 +87,30 @@ class _ReadyViewState extends State<_ReadyView> {
   TasksReady get state => widget.state;
   String get userId => widget.userId;
 
+  @override
+  void didUpdateWidget(covariant _ReadyView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A different view, workspace or project starts a fresh list at the top:
+    // bring "New task" back instead of leaving it hidden from an old scroll.
+    final before = oldWidget.state;
+    if (before.mode != state.mode ||
+        before.workspace.id != state.workspace.id ||
+        before.filter.projectId != state.filter.projectId) {
+      _showFab = true;
+    }
+  }
+
   bool _onUserScroll(UserScrollNotification n) {
     if (n.metrics.axis != Axis.vertical) return false;
     final show = switch (n.direction) {
       ScrollDirection.reverse => false,
       ScrollDirection.forward => true,
-      ScrollDirection.idle => n.metrics.pixels <= n.metrics.minScrollExtent ? true : _showFab,
+      // Stopped at the top, or at the end where the bottom padding keeps
+      // the last card clear of the button.
+      ScrollDirection.idle =>
+        n.metrics.pixels <= n.metrics.minScrollExtent || n.metrics.pixels >= n.metrics.maxScrollExtent
+            ? true
+            : _showFab,
     };
     if (show != _showFab) setState(() => _showFab = show);
     return false;
