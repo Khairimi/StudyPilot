@@ -91,6 +91,12 @@ class _StudyPilotShellState extends State<StudyPilotShell> {
     widget.profileTabOverride ?? const SpProfileTab(),
   ];
 
+  /// Keeps the tabs (and their cubits, filters, view modes and scroll
+  /// positions) alive when the layout switches between the bottom bar and
+  /// the rail, e.g. while a browser window is resized. Without it the tabs
+  /// would be rebuilt from scratch under the new parent.
+  final GlobalKey _tabsKey = GlobalKey(debugLabel: 'StudyPilot tabs');
+
   void _select(int i) => setState(() => _index = i);
 
   void _openNotifications() {
@@ -161,7 +167,7 @@ class _StudyPilotShellState extends State<StudyPilotShell> {
           ),
         );
 
-        final body = IndexedStack(index: _index, children: _tabs);
+        final body = IndexedStack(key: _tabsKey, index: _index, children: _tabs);
 
         if (wide) {
           return Scaffold(
