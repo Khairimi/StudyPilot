@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
 import 'package:study_app/studypilot/core/sp_user.dart';
@@ -69,10 +70,33 @@ class _TasksView extends StatelessWidget {
   }
 }
 
-class _ReadyView extends StatelessWidget {
+class _ReadyView extends StatefulWidget {
   final TasksReady state;
   final String userId;
   const _ReadyView({required this.state, required this.userId});
+
+  @override
+  State<_ReadyView> createState() => _ReadyViewState();
+}
+
+class _ReadyViewState extends State<_ReadyView> {
+  /// The "New task" button hides while scrolling down through tasks so it
+  /// never sits on top of them, and returns when scrolling back up.
+  bool _showFab = true;
+
+  TasksReady get state => widget.state;
+  String get userId => widget.userId;
+
+  bool _onUserScroll(UserScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical) return false;
+    final show = switch (n.direction) {
+      ScrollDirection.reverse => false,
+      ScrollDirection.forward => true,
+      ScrollDirection.idle => n.metrics.pixels <= n.metrics.minScrollExtent ? true : _showFab,
+    };
+    if (show != _showFab) setState(() => _showFab = show);
+    return false;
+  }
 
   void _openTask(BuildContext context, TeamTask task, DateTime now) {
     Navigator.of(context).push(
@@ -98,7 +122,7 @@ class _ReadyView extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: !TaskPermissions(state.workspace, userId).canCreate
+      floatingActionButton: !_showFab || !TaskPermissions(state.workspace, userId).canCreate
           ? null
           : FloatingActionButton.extended(
               onPressed: () => showTaskFormSheet(
@@ -189,15 +213,18 @@ class _ReadyView extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: state.visible.isEmpty
-                ? const SpEmptyState(
-                    icon: Icons.search_off_rounded,
-                    title: 'No matching tasks',
-                    message: 'Try a different search or clear the filters.',
-                  )
-                : state.mode == TaskViewMode.list
-                ? _ListView(state: state, now: now, onOpen: (t) => _openTask(context, t, now))
-                : _BoardView(state: state, now: now, onOpen: (t) => _openTask(context, t, now)),
+            child: NotificationListener<UserScrollNotification>(
+              onNotification: _onUserScroll,
+              child: state.visible.isEmpty
+                  ? const SpEmptyState(
+                      icon: Icons.search_off_rounded,
+                      title: 'No matching tasks',
+                      message: 'Try a different search or clear the filters.',
+                    )
+                  : state.mode == TaskViewMode.list
+                  ? _ListView(state: state, now: now, onOpen: (t) => _openTask(context, t, now))
+                  : _BoardView(state: state, now: now, onOpen: (t) => _openTask(context, t, now)),
+            ),
           ),
         ],
       ),
@@ -214,7 +241,7 @@ class _ListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(SpSpacing.lg, SpSpacing.sm, SpSpacing.lg, 96),
+      padding: EdgeInsets.fromLTRB(SpSpacing.lg, SpSpacing.sm, SpSpacing.lg, fabClearance(context)),
       itemCount: state.visible.length,
       separatorBuilder: (_, _) => const SizedBox(height: SpSpacing.sm),
       itemBuilder: (context, i) {
@@ -231,63 +258,132 @@ class _ListView extends StatelessWidget {
   }
 }
 
-class _BoardView extends StatelessWidget {
+/// Bottom space so the floating "New task" button never covers the last
+/// card: FAB height + its margin + a gap, plus any bottom safe-area inset
+/// not already consumed (e.g. no bottom navigation bar on wide layouts).
+double fabClearance(BuildContext context) => 56 + SpSpacing.lg + SpSpacing.xl + MediaQuery.paddingOf(context).bottom;
+
+class _BoardView extends StatefulWidget {
   final TasksReady state;
   final DateTime now;
   final ValueChanged<TeamTask> onOpen;
   const _BoardView({required this.state, required this.now, required this.onOpen});
 
   @override
+  State<_BoardView> createState() => _BoardViewState();
+}
+
+/// Kanban board. When the columns do not fit the screen (phones), a status
+/// tab strip shows every column with its count; tapping a tab scrolls to
+/// that column and the selected tab follows horizontal swipes.
+class _BoardViewState extends State<_BoardView> with SingleTickerProviderStateMixin {
+  static const _gap = SpSpacing.md;
+  final _scroll = ScrollController();
+  late final TabController _tabs = TabController(length: SpTaskStatus.values.length, vsync: this);
+  double _step = 1; // column width + gap
+  bool _jumping = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_syncTab);
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  void _syncTab() {
+    if (_jumping || !_scroll.hasClients) return;
+    final pos = _scroll.position;
+    final last = _tabs.length - 1;
+    final i = pos.pixels >= pos.maxScrollExtent - 1 ? last : ((pos.pixels + _step / 2) / _step).floor().clamp(0, last);
+    if (i != _tabs.index) _tabs.animateTo(i);
+  }
+
+  Future<void> _goTo(int i) async {
+    if (!_scroll.hasClients) return;
+    _jumping = true;
+    final target = (i * _step).clamp(0.0, _scroll.position.maxScrollExtent);
+    await _scroll.animateTo(target, duration: const Duration(milliseconds: 250), curve: Curves.easeOutCubic);
+    _jumping = false;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     final columns = groupByStatus(state.visible);
     final theme = Theme.of(context);
+    final bottom = fabClearance(context);
     return LayoutBuilder(
       builder: (context, c) {
         final columnWidth = (c.maxWidth * 0.82).clamp(240.0, 320.0);
-        return ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.fromLTRB(SpSpacing.lg, SpSpacing.sm, SpSpacing.lg, SpSpacing.lg),
+        _step = columnWidth + _gap;
+        final overflows = columns.length * _step + 2 * SpSpacing.lg > c.maxWidth;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final entry in columns.entries)
-              Container(
-                width: columnWidth,
-                margin: const EdgeInsets.only(right: SpSpacing.md),
-                decoration: BoxDecoration(color: theme.colorScheme.surfaceContainer, borderRadius: SpRadius.card),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(SpSpacing.md),
-                      child: Row(
+            if (overflows)
+              TabBar(
+                controller: _tabs,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                padding: const EdgeInsets.symmetric(horizontal: SpSpacing.sm),
+                onTap: _goTo,
+                tabs: [for (final e in columns.entries) Tab(text: '${e.key.label} (${e.value.length})')],
+              ),
+            Expanded(
+              child: ListView(
+                controller: _scroll,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(SpSpacing.lg, SpSpacing.sm, SpSpacing.lg, SpSpacing.lg),
+                children: [
+                  for (final entry in columns.entries)
+                    Container(
+                      width: columnWidth,
+                      margin: const EdgeInsets.only(right: _gap),
+                      decoration: BoxDecoration(color: theme.colorScheme.surfaceContainer, borderRadius: SpRadius.card),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          SpStatusBadge(status: entry.key),
-                          const Spacer(),
-                          Text('${entry.value.length}', style: theme.textTheme.labelLarge),
+                          Padding(
+                            padding: const EdgeInsets.all(SpSpacing.md),
+                            child: Row(
+                              children: [
+                                SpStatusBadge(status: entry.key),
+                                const Spacer(),
+                                Text('${entry.value.length}', style: theme.textTheme.labelLarge),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: entry.value.isEmpty
+                                ? Center(child: Text('No tasks', style: theme.textTheme.bodySmall))
+                                : ListView.separated(
+                                    padding: EdgeInsets.fromLTRB(SpSpacing.sm, 0, SpSpacing.sm, bottom),
+                                    itemCount: entry.value.length,
+                                    separatorBuilder: (_, _) => const SizedBox(height: SpSpacing.sm),
+                                    itemBuilder: (context, i) {
+                                      final t = entry.value[i];
+                                      return TaskCard(
+                                        task: t,
+                                        now: widget.now,
+                                        assigneeName: state.memberName(t.assigneeId),
+                                        compact: true,
+                                        onTap: () => widget.onOpen(t),
+                                      );
+                                    },
+                                  ),
+                          ),
                         ],
                       ),
                     ),
-                    Expanded(
-                      child: entry.value.isEmpty
-                          ? Center(child: Text('No tasks', style: theme.textTheme.bodySmall))
-                          : ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(SpSpacing.sm, 0, SpSpacing.sm, 96),
-                              itemCount: entry.value.length,
-                              separatorBuilder: (_, _) => const SizedBox(height: SpSpacing.sm),
-                              itemBuilder: (context, i) {
-                                final t = entry.value[i];
-                                return TaskCard(
-                                  task: t,
-                                  now: now,
-                                  assigneeName: state.memberName(t.assigneeId),
-                                  compact: true,
-                                  onTap: () => onOpen(t),
-                                );
-                              },
-                            ),
-                    ),
-                  ],
-                ),
+                ],
               ),
+            ),
           ],
         );
       },
