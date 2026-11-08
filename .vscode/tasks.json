@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // One click: Terminal > Run Task, or Ctrl+Shift+B (default build task).
+      // Runs Flutter in a visible terminal and opens Chrome Profile 1.
+      "label": "StudyPilot: run (localhost:5000 + Chrome School)",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", "${workspaceFolder}\\.vscode\\run-studypilot.ps1"
+      ],
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "dedicated", "focus": true, "clear": true },
+      "runOptions": { "instanceLimit": 1 },
+      "problemMatcher": []
+    },
+    {
+      // Only needed if a server is left running after its terminal has closed.
+      "label": "StudyPilot: stop server (port 5000)",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", "${workspaceFolder}\\.vscode\\stop-studypilot.ps1"
+      ],
+      "presentation": { "reveal": "always", "panel": "shared" },
+      "problemMatcher": []
+    }
+  ]
+}
