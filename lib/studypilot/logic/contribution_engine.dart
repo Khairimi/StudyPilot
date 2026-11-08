@@ -46,6 +46,8 @@ class MemberContribution {
 /// Adaptations:
 /// * With no completed work every member gets 0% (the prototype split 100%
 ///   equally, which overstated contribution).
+/// * If completed work has zero total hours, shares use task counts only
+///   (see [ContributionEngine.shareOf]).
 /// * Percentages use largest-remainder rounding so they always sum to 100.
 /// * On-time rate is null (not 100%) when no eligible tasks exist.
 /// * Only tasks assigned to current members count (unassigned / removed
@@ -82,9 +84,12 @@ class ContributionEngine {
           eligible.where((t) => calendarDaysUntil(t.dueAt!, t.completedAt!) >= 0).length;
       final doneHours = done.fold<double>(0, (s, t) => s + effectiveHours(t));
 
-      final share = totalCount == 0
-          ? 0.0
-          : 0.5 * (done.length / totalCount) + 0.5 * (doneHours / totalHours);
+      final share = shareOf(
+        completedCount: done.length,
+        totalCompletedCount: totalCount,
+        completedHours: doneHours,
+        totalCompletedHours: totalHours,
+      );
 
       rows.add(_Row(
         m.userId,
@@ -119,6 +124,26 @@ class ContributionEngine {
           contributionPercent: percents[i],
         ),
     ];
+  }
+
+  /// One member's share of the team's completed work, 0.0–1.0.
+  /// * No completed tasks → 0.
+  /// * Total completed hours is zero → task-count share only.
+  /// * Otherwise → 50% task-count share + 50% hours share.
+  ///
+  /// The zero-hours branch is a guard: [effectiveHours] gives every task at
+  /// least 3h, so it cannot be reached through [calculate] with the current
+  /// model, where a missing estimate and an explicit 0h are both stored as 0.
+  static double shareOf({
+    required int completedCount,
+    required int totalCompletedCount,
+    required double completedHours,
+    required double totalCompletedHours,
+  }) {
+    if (totalCompletedCount <= 0) return 0;
+    final countShare = completedCount / totalCompletedCount;
+    if (totalCompletedHours <= 0) return countShare;
+    return 0.5 * countShare + 0.5 * (completedHours / totalCompletedHours);
   }
 
   /// Share of a project's (or any task set's) tasks that are completed,

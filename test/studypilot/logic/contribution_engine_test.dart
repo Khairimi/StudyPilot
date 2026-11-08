@@ -91,4 +91,37 @@ void main() {
     expect(y, x);
     expect(x.values.fold<int>(0, (s, v) => s + v), 100);
   });
+
+  group('shareOf (zero-hours fallback)', () {
+    test('no completed tasks → 0', () {
+      expect(
+          ContributionEngine.shareOf(
+              completedCount: 0, totalCompletedCount: 0, completedHours: 0, totalCompletedHours: 0),
+          0);
+    });
+
+    test('zero total hours → task-count share only (no NaN)', () {
+      final s = ContributionEngine.shareOf(
+          completedCount: 1, totalCompletedCount: 4, completedHours: 0, totalCompletedHours: 0);
+      expect(s, 0.25);
+      expect(s.isNaN, isFalse);
+    });
+
+    test('normal case keeps the 50/50 formula', () {
+      // 0.5 * (1/4) + 0.5 * (9/12)
+      expect(
+          ContributionEngine.shareOf(
+              completedCount: 1, totalCompletedCount: 4, completedHours: 9, totalCompletedHours: 12),
+          0.5);
+    });
+  });
+
+  test('missing estimates keep the 3h default (equal to count shares)', () {
+    final r = calc([done('a1', 'ana', hours: 0), done('b1', 'ben', hours: 0), done('b2', 'ben', hours: 0)],
+        ws: workspace(members: ['ana', 'ben']));
+    expect(r['ana']!.completedHours, 3);
+    expect(r['ben']!.completedHours, 6);
+    expect(r['ana']!.contributionPercent, 33);
+    expect(r['ben']!.contributionPercent, 67);
+  });
 }
