@@ -44,17 +44,17 @@ class _DashboardView extends StatelessWidget {
       builder: (context, state) => switch (state) {
         DashboardLoading() => const Center(child: CircularProgressIndicator()),
         DashboardError(:final message) => SpEmptyState(
-            icon: Icons.cloud_off_rounded,
-            title: 'Something went wrong',
-            message: message,
-            actionLabel: 'Try again',
-            onAction: cubit.load,
-          ),
+          icon: Icons.cloud_off_rounded,
+          title: 'Something went wrong',
+          message: message,
+          actionLabel: 'Try again',
+          onAction: cubit.load,
+        ),
         DashboardNoWorkspaces() => const SpEmptyState(
-            icon: Icons.groups_outlined,
-            title: 'No workspaces yet',
-            message: 'Create or join a team workspace to see your dashboard.',
-          ),
+          icon: Icons.groups_outlined,
+          title: 'No workspaces yet',
+          message: 'Create or join a team workspace to see your dashboard.',
+        ),
         DashboardReady() => _ReadyView(state: state, userName: userName, now: cubit.clock()),
       },
     );
@@ -75,64 +75,61 @@ class _ReadyView extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: () => cubit.load(workspaceId: s.workspace.id),
-      child: LayoutBuilder(builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 900;
-        const gap = SizedBox(height: SpSpacing.xl);
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 900;
+          const gap = SizedBox(height: SpSpacing.xl);
 
-        void openWorkload() => Navigator.of(context).push(MaterialPageRoute(
+          void openWorkload() => Navigator.of(context).push(
+            MaterialPageRoute(
               builder: (_) => WorkloadInsightsScreen(
                 repository: cubit.repository,
                 userId: cubit.userId,
                 workspaceId: s.workspace.id,
                 clock: cubit.clock,
               ),
-            ));
-
-        final priority = PriorityTasksSection(summary: s, now: now);
-        final workload = WorkloadHealthSection(summary: s, onViewDetails: openWorkload);
-
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(SpSpacing.lg, SpSpacing.lg, SpSpacing.lg, SpSpacing.xxl),
-          children: [
-            Text('${greeting(now)}, ${firstName(userName)}', style: theme.textTheme.displaySmall),
-            const SizedBox(height: SpSpacing.xs),
-            Text('Here is how your team is doing today.', style: theme.textTheme.bodyMedium),
-            const SizedBox(height: SpSpacing.lg),
-            WorkspaceSelector(
-              workspaces: state.workspaces,
-              selected: s.workspace,
-              onSelected: cubit.selectWorkspace,
             ),
-            if (state.isDemo) ...[
-              const SizedBox(height: SpSpacing.sm),
-              const DemoDataBanner(),
-            ],
-            if (s.conflicts.isNotEmpty) ...[
+          );
+
+          final priority = PriorityTasksSection(summary: s, now: now);
+          final workload = WorkloadHealthSection(summary: s, onViewDetails: openWorkload);
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(SpSpacing.lg, SpSpacing.lg, SpSpacing.lg, SpSpacing.xxl),
+            children: [
+              Text('${greeting(now)}, ${firstName(userName)}', style: theme.textTheme.displaySmall),
+              const SizedBox(height: SpSpacing.xs),
+              Text('Here is how your team is doing today.', style: theme.textTheme.bodyMedium),
               const SizedBox(height: SpSpacing.lg),
-              WorkloadAlertCard(summary: s, onViewDetails: openWorkload),
-            ],
-            const SizedBox(height: SpSpacing.lg),
-            KpiGrid(summary: s),
-            gap,
-            if (wide)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 3, child: priority),
-                  const SizedBox(width: SpSpacing.xl),
-                  Expanded(flex: 2, child: workload),
-                ],
-              )
-            else ...[
-              priority,
+              WorkspaceSelector(workspaces: state.workspaces, selected: s.workspace, onSelected: cubit.selectWorkspace),
+              if (state.isDemo) ...[const SizedBox(height: SpSpacing.sm), const DemoDataBanner()],
+              if (s.conflicts.isNotEmpty) ...[
+                const SizedBox(height: SpSpacing.lg),
+                WorkloadAlertCard(summary: s, onViewDetails: openWorkload),
+              ],
+              const SizedBox(height: SpSpacing.lg),
+              KpiGrid(summary: s),
               gap,
-              workload,
+              if (wide)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 3, child: priority),
+                    const SizedBox(width: SpSpacing.xl),
+                    Expanded(flex: 2, child: workload),
+                  ],
+                )
+              else ...[
+                priority,
+                gap,
+                workload,
+              ],
+              gap,
+              RecentActivitySection(summary: s, now: now),
             ],
-            gap,
-            RecentActivitySection(summary: s, now: now),
-          ],
-        );
-      }),
+          );
+        },
+      ),
     );
   }
 }

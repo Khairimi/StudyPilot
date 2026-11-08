@@ -5,8 +5,7 @@ import 'package:study_app/studypilot/core/sp_user.dart';
 import 'package:study_app/studypilot/data/workspace_repository.dart';
 import 'package:study_app/studypilot/logic/task_permissions.dart';
 import 'package:study_app/studypilot/models/models.dart';
-import 'package:study_app/studypilot/screens/dashboard/dashboard_sections.dart'
-    show DemoDataBanner, WorkspaceSelector;
+import 'package:study_app/studypilot/screens/dashboard/dashboard_sections.dart' show DemoDataBanner, WorkspaceSelector;
 import 'package:study_app/studypilot/screens/tasks/task_card.dart';
 import 'package:study_app/studypilot/screens/tasks/task_detail_screen.dart';
 import 'package:study_app/studypilot/screens/tasks/task_filter.dart';
@@ -44,17 +43,17 @@ class _TasksView extends StatelessWidget {
       builder: (context, state) => switch (state) {
         TasksLoading() => const Center(child: CircularProgressIndicator()),
         TasksError(:final message) => SpEmptyState(
-            icon: Icons.cloud_off_rounded,
-            title: 'Something went wrong',
-            message: message,
-            actionLabel: 'Try again',
-            onAction: cubit.load,
-          ),
+          icon: Icons.cloud_off_rounded,
+          title: 'Something went wrong',
+          message: message,
+          actionLabel: 'Try again',
+          onAction: cubit.load,
+        ),
         TasksNoWorkspaces() => const SpEmptyState(
-            icon: Icons.task_alt_rounded,
-            title: 'No workspaces yet',
-            message: 'Join or create a team workspace in Teams to manage tasks.',
-          ),
+          icon: Icons.task_alt_rounded,
+          title: 'No workspaces yet',
+          message: 'Join or create a team workspace in Teams to manage tasks.',
+        ),
         TasksReady() => _ReadyView(state: state, userId: userId),
       },
     );
@@ -67,17 +66,19 @@ class _ReadyView extends StatelessWidget {
   const _ReadyView({required this.state, required this.userId});
 
   void _openTask(BuildContext context, TeamTask task, DateTime now) {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => TaskDetailScreen(
-        task: task,
-        workspace: state.workspace,
-        projects: state.projects,
-        allTasks: state.allTasks,
-        currentUserId: userId,
-        now: now,
-        isDemo: state.isDemo,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TaskDetailScreen(
+          task: task,
+          workspace: state.workspace,
+          projects: state.projects,
+          allTasks: state.allTasks,
+          currentUserId: userId,
+          now: now,
+          isDemo: state.isDemo,
+        ),
       ),
-    ));
+    );
   }
 
   @override
@@ -114,10 +115,7 @@ class _ReadyView extends StatelessWidget {
                   selected: state.workspace,
                   onSelected: cubit.selectWorkspace,
                 ),
-                if (state.isDemo) ...[
-                  const SizedBox(height: SpSpacing.sm),
-                  const DemoDataBanner(),
-                ],
+                if (state.isDemo) ...[const SizedBox(height: SpSpacing.sm), const DemoDataBanner()],
                 const SizedBox(height: SpSpacing.md),
                 Row(
                   children: [
@@ -144,11 +142,11 @@ class _ReadyView extends StatelessWidget {
                     const SizedBox(width: SpSpacing.xs),
                     IconButton.outlined(
                       tooltip: state.mode == TaskViewMode.list ? 'Board view' : 'List view',
-                      onPressed: () => cubit.setMode(
-                          state.mode == TaskViewMode.list ? TaskViewMode.board : TaskViewMode.list),
-                      icon: Icon(state.mode == TaskViewMode.list
-                          ? Icons.view_kanban_outlined
-                          : Icons.view_list_rounded),
+                      onPressed: () =>
+                          cubit.setMode(state.mode == TaskViewMode.list ? TaskViewMode.board : TaskViewMode.list),
+                      icon: Icon(
+                        state.mode == TaskViewMode.list ? Icons.view_kanban_outlined : Icons.view_list_rounded,
+                      ),
                     ),
                   ],
                 ),
@@ -179,8 +177,8 @@ class _ReadyView extends StatelessWidget {
                     message: 'Try a different search or clear the filters.',
                   )
                 : state.mode == TaskViewMode.list
-                    ? _ListView(state: state, now: now, onOpen: (t) => _openTask(context, t, now))
-                    : _BoardView(state: state, now: now, onOpen: (t) => _openTask(context, t, now)),
+                ? _ListView(state: state, now: now, onOpen: (t) => _openTask(context, t, now))
+                : _BoardView(state: state, now: now, onOpen: (t) => _openTask(context, t, now)),
           ),
         ],
       ),
@@ -224,58 +222,57 @@ class _BoardView extends StatelessWidget {
   Widget build(BuildContext context) {
     final columns = groupByStatus(state.visible);
     final theme = Theme.of(context);
-    return LayoutBuilder(builder: (context, c) {
-      final columnWidth = (c.maxWidth * 0.82).clamp(240.0, 320.0);
-      return ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(SpSpacing.lg, SpSpacing.sm, SpSpacing.lg, SpSpacing.lg),
-        children: [
-          for (final entry in columns.entries)
-            Container(
-              width: columnWidth,
-              margin: const EdgeInsets.only(right: SpSpacing.md),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainer,
-                borderRadius: SpRadius.card,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(SpSpacing.md),
-                    child: Row(
-                      children: [
-                        SpStatusBadge(status: entry.key),
-                        const Spacer(),
-                        Text('${entry.value.length}', style: theme.textTheme.labelLarge),
-                      ],
+    return LayoutBuilder(
+      builder: (context, c) {
+        final columnWidth = (c.maxWidth * 0.82).clamp(240.0, 320.0);
+        return ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(SpSpacing.lg, SpSpacing.sm, SpSpacing.lg, SpSpacing.lg),
+          children: [
+            for (final entry in columns.entries)
+              Container(
+                width: columnWidth,
+                margin: const EdgeInsets.only(right: SpSpacing.md),
+                decoration: BoxDecoration(color: theme.colorScheme.surfaceContainer, borderRadius: SpRadius.card),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(SpSpacing.md),
+                      child: Row(
+                        children: [
+                          SpStatusBadge(status: entry.key),
+                          const Spacer(),
+                          Text('${entry.value.length}', style: theme.textTheme.labelLarge),
+                        ],
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: entry.value.isEmpty
-                        ? Center(child: Text('No tasks', style: theme.textTheme.bodySmall))
-                        : ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(SpSpacing.sm, 0, SpSpacing.sm, 96),
-                            itemCount: entry.value.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: SpSpacing.sm),
-                            itemBuilder: (context, i) {
-                              final t = entry.value[i];
-                              return TaskCard(
-                                task: t,
-                                now: now,
-                                assigneeName: state.memberName(t.assigneeId),
-                                compact: true,
-                                onTap: () => onOpen(t),
-                              );
-                            },
-                          ),
-                  ),
-                ],
+                    Expanded(
+                      child: entry.value.isEmpty
+                          ? Center(child: Text('No tasks', style: theme.textTheme.bodySmall))
+                          : ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(SpSpacing.sm, 0, SpSpacing.sm, 96),
+                              itemCount: entry.value.length,
+                              separatorBuilder: (_, _) => const SizedBox(height: SpSpacing.sm),
+                              itemBuilder: (context, i) {
+                                final t = entry.value[i];
+                                return TaskCard(
+                                  task: t,
+                                  now: now,
+                                  assigneeName: state.memberName(t.assigneeId),
+                                  compact: true,
+                                  onTap: () => onOpen(t),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-        ],
-      );
-    });
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -290,9 +287,9 @@ Future<void> _showFilterSheet(BuildContext context, TasksReady state) {
       builder: (ctx, setSheet) {
         final theme = Theme.of(ctx);
         Widget label(String s) => Padding(
-              padding: const EdgeInsets.only(top: SpSpacing.lg, bottom: SpSpacing.xs),
-              child: Text(s, style: theme.textTheme.labelLarge),
-            );
+          padding: const EdgeInsets.only(top: SpSpacing.lg, bottom: SpSpacing.xs),
+          child: Text(s, style: theme.textTheme.labelLarge),
+        );
         return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(SpSpacing.xl, 0, SpSpacing.xl, SpSpacing.xl),
           child: Column(
@@ -300,54 +297,73 @@ Future<void> _showFilterSheet(BuildContext context, TasksReady state) {
             children: [
               Text('Filter tasks', style: theme.textTheme.titleLarge),
               label('Show'),
-              Wrap(spacing: SpSpacing.sm, children: [
-                for (final (scope, text) in [
-                  (TaskScope.all, 'All tasks'),
-                  (TaskScope.mine, 'Assigned to me'),
-                  (TaskScope.unassigned, 'Unassigned'),
-                ])
-                  ChoiceChip(
-                    label: Text(text),
-                    selected: draft.scope == scope,
-                    onSelected: (_) => setSheet(() => draft = draft.copyWith(scope: scope)),
-                  ),
-              ]),
+              Wrap(
+                spacing: SpSpacing.sm,
+                children: [
+                  for (final (scope, text) in [
+                    (TaskScope.all, 'All tasks'),
+                    (TaskScope.mine, 'Assigned to me'),
+                    (TaskScope.unassigned, 'Unassigned'),
+                  ])
+                    ChoiceChip(
+                      label: Text(text),
+                      selected: draft.scope == scope,
+                      onSelected: (_) => setSheet(() => draft = draft.copyWith(scope: scope)),
+                    ),
+                ],
+              ),
               label('Project'),
-              Wrap(spacing: SpSpacing.sm, runSpacing: SpSpacing.xs, children: [
-                ChoiceChip(
-                  label: const Text('Any'),
-                  selected: draft.projectId == null,
-                  onSelected: (_) => setSheet(() => draft = draft.copyWith(projectId: null)),
-                ),
-                for (final p in state.projects)
+              Wrap(
+                spacing: SpSpacing.sm,
+                runSpacing: SpSpacing.xs,
+                children: [
                   ChoiceChip(
-                    label: Text(p.title),
-                    selected: draft.projectId == p.id,
-                    onSelected: (_) => setSheet(() => draft = draft.copyWith(projectId: p.id)),
+                    label: const Text('Any'),
+                    selected: draft.projectId == null,
+                    onSelected: (_) => setSheet(() => draft = draft.copyWith(projectId: null)),
                   ),
-              ]),
+                  for (final p in state.projects)
+                    ChoiceChip(
+                      label: Text(p.title),
+                      selected: draft.projectId == p.id,
+                      onSelected: (_) => setSheet(() => draft = draft.copyWith(projectId: p.id)),
+                    ),
+                ],
+              ),
               label('Priority'),
-              Wrap(spacing: SpSpacing.sm, runSpacing: SpSpacing.xs, children: [
-                for (final p in SpPriority.values)
-                  FilterChip(
-                    label: Text(p.label),
-                    selected: draft.priorities.contains(p),
-                    onSelected: (on) => setSheet(() => draft = draft.copyWith(
+              Wrap(
+                spacing: SpSpacing.sm,
+                runSpacing: SpSpacing.xs,
+                children: [
+                  for (final p in SpPriority.values)
+                    FilterChip(
+                      label: Text(p.label),
+                      selected: draft.priorities.contains(p),
+                      onSelected: (on) => setSheet(
+                        () => draft = draft.copyWith(
                           priorities: on ? {...draft.priorities, p} : ({...draft.priorities}..remove(p)),
-                        )),
-                  ),
-              ]),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               label('Status'),
-              Wrap(spacing: SpSpacing.sm, runSpacing: SpSpacing.xs, children: [
-                for (final s in SpTaskStatus.values)
-                  FilterChip(
-                    label: Text(s.label),
-                    selected: draft.statuses.contains(s),
-                    onSelected: (on) => setSheet(() => draft = draft.copyWith(
+              Wrap(
+                spacing: SpSpacing.sm,
+                runSpacing: SpSpacing.xs,
+                children: [
+                  for (final s in SpTaskStatus.values)
+                    FilterChip(
+                      label: Text(s.label),
+                      selected: draft.statuses.contains(s),
+                      onSelected: (on) => setSheet(
+                        () => draft = draft.copyWith(
                           statuses: on ? {...draft.statuses, s} : ({...draft.statuses}..remove(s)),
-                        )),
-                  ),
-              ]),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               const SizedBox(height: SpSpacing.xl),
               Row(
                 children: [

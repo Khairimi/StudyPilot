@@ -13,12 +13,7 @@ class WorkspaceDetailScreen extends StatelessWidget {
   final String userId;
   final bool isDemo;
 
-  const WorkspaceDetailScreen({
-    super.key,
-    required this.overview,
-    required this.userId,
-    required this.isDemo,
-  });
+  const WorkspaceDetailScreen({super.key, required this.overview, required this.userId, required this.isDemo});
 
   @override
   Widget build(BuildContext context) {
@@ -165,10 +160,7 @@ class _ProjectCard extends StatelessWidget {
             Text(_projectDue(project.dueDate!), style: theme.textTheme.bodySmall),
           ],
           const SizedBox(height: SpSpacing.md),
-          SpProgressBar(
-            value: overview.progressOf(project.id),
-            label: '$done of ${tasks.length} tasks done',
-          ),
+          SpProgressBar(value: overview.progressOf(project.id), label: '$done of ${tasks.length} tasks done'),
         ],
       ),
     );
@@ -183,12 +175,7 @@ class _MemberTile extends StatelessWidget {
   final WorkspaceOverview overview;
   final String userId;
   final bool canManage;
-  const _MemberTile({
-    required this.member,
-    required this.overview,
-    required this.userId,
-    required this.canManage,
-  });
+  const _MemberTile({required this.member, required this.overview, required this.userId, required this.canManage});
 
   @override
   Widget build(BuildContext context) {
@@ -212,10 +199,7 @@ class _MemberTile extends StatelessWidget {
                     : '${member.displayName} was not removed.',
               ),
               itemBuilder: (_) => [
-                PopupMenuItem(
-                  value: 'role',
-                  child: Text(member.isOwner ? 'Make member (demo)' : 'Make owner (demo)'),
-                ),
+                PopupMenuItem(value: 'role', child: Text(member.isOwner ? 'Make member (demo)' : 'Make owner (demo)')),
                 const PopupMenuItem(value: 'remove', child: Text('Remove from workspace (demo)')),
               ],
             ),
