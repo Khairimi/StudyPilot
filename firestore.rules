@@ -1,0 +1,42 @@
+rules_version = '2';
+
+// StudyPilot / StudyFlow security rules for project studyflow-500419.
+//
+// The app uses one Firestore path: users/{uid}/subjects/{subjectId}. Each user
+// can reach only their own subjects. Everything else is denied by default,
+// including the future StudyPilot workspace collections (planned for Phase 10).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // A nullable text field may be absent, null or a string.
+    function isOptionalString(data, field) {
+      return data.get(field, null) == null || data.get(field, null) is string;
+    }
+
+    // Matches Subject.toMap() in lib/models/subject.dart.
+    function isValidSubject(subjectId) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['id', 'name', 'colorValue', 'createdDate', 'weightage'])
+        && data.keys().hasOnly(['id', 'name', 'colorValue', 'createdDate', 'weightage',
+                                'dueDate', 'dueTime', 'priority', 'notes'])
+        && data.id == subjectId
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 500
+        && data.colorValue is int
+        && data.createdDate is string
+        && data.weightage is int
+        && isOptionalString(data, 'dueDate')
+        && isOptionalString(data, 'dueTime')
+        && isOptionalString(data, 'priority')
+        && isOptionalString(data, 'notes');
+    }
+
+    match /users/{uid}/subjects/{subjectId} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && isValidSubject(subjectId);
+    }
+  }
+}
