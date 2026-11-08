@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
 import 'package:study_app/studypilot/core/sp_user.dart';
+import 'package:study_app/studypilot/core/workspace_selection.dart';
 import 'package:study_app/studypilot/data/demo_workspace_repository.dart';
 import 'package:study_app/studypilot/data/workspace_repository.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_tab.dart';
@@ -61,6 +62,15 @@ class _StudyPilotShellState extends State<StudyPilotShell> {
       widget.repositoryOverride ??
       DemoWorkspaceRepository(currentUserId: _user.uid, currentUserName: _user.displayName);
 
+  /// The one shared selected workspace for Home, Tasks and Workload Insights.
+  final WorkspaceSelectionCubit _selection = WorkspaceSelectionCubit();
+
+  @override
+  void dispose() {
+    _selection.close();
+    super.dispose();
+  }
+
   static SpUserInfo _userFromFirebase() {
     final u = FirebaseAuth.instance.currentUser;
     final name = (u?.displayName?.trim().isNotEmpty ?? false)
@@ -107,7 +117,10 @@ class _StudyPilotShellState extends State<StudyPilotShell> {
       user: _user,
       child: SpShellScope(
         selectTab: _select,
-        child: RepositoryProvider<WorkspaceRepository>.value(value: _repository, child: _buildLayout(theme, current)),
+        child: RepositoryProvider<WorkspaceRepository>.value(
+          value: _repository,
+          child: BlocProvider<WorkspaceSelectionCubit>.value(value: _selection, child: _buildLayout(theme, current)),
+        ),
       ),
     );
   }

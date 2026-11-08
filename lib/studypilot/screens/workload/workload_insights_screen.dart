@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
+import 'package:study_app/studypilot/core/workspace_selection.dart';
 import 'package:study_app/studypilot/data/workspace_repository.dart';
 import 'package:study_app/studypilot/logic/workload_engine.dart';
 import 'package:study_app/studypilot/models/models.dart';
@@ -20,19 +21,24 @@ class WorkloadInsightsScreen extends StatelessWidget {
   final String? workspaceId;
   final DateTime Function()? clock;
 
+  /// Shared selection, passed in because this screen is its own route.
+  final WorkspaceSelectionCubit? selection;
+
   const WorkloadInsightsScreen({
     super.key,
     required this.repository,
     required this.userId,
     this.workspaceId,
     this.clock,
+    this.selection,
   });
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) =>
-          WorkloadCubit(repository: repository, userId: userId, clock: clock)..load(workspaceId: workspaceId),
+          WorkloadCubit(repository: repository, userId: userId, clock: clock, selection: selection)
+            ..load(workspaceId: workspaceId),
       child: Scaffold(
         appBar: AppBar(title: const Text('Workload Insights')),
         body: BlocBuilder<WorkloadCubit, WorkloadState>(

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:study_app/studypilot/core/design_system.dart';
+import 'package:study_app/studypilot/core/sp_shell_scope.dart';
 import 'package:study_app/studypilot/core/sp_user.dart';
+import 'package:study_app/studypilot/core/workspace_selection.dart';
 import 'package:study_app/studypilot/data/workspace_repository.dart';
 import 'package:study_app/studypilot/models/models.dart';
 import 'package:study_app/studypilot/screens/dashboard/dashboard_format.dart';
@@ -36,6 +38,15 @@ class _TeamsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<TeamsCubit>();
+    // Project cards open Tasks filtered by project (only inside the shell).
+    final shell = SpShellScope.maybeOf(context);
+    final selection = context.read<WorkspaceSelectionCubit?>();
+    ValueChanged<String>? openProject(Workspace ws) => shell == null || selection == null
+        ? null
+        : (projectId) {
+            selection.focusProject(ws.id, projectId);
+            shell.selectTab(SpTabs.tasks);
+          };
     return BlocBuilder<TeamsCubit, TeamsState>(
       builder: (context, state) => switch (state) {
         TeamsLoading() => const Center(child: CircularProgressIndicator()),
@@ -96,7 +107,12 @@ class _TeamsView extends StatelessWidget {
                     userId: userId,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => WorkspaceDetailScreen(overview: w, userId: userId, isDemo: state.isDemo),
+                        builder: (_) => WorkspaceDetailScreen(
+                          overview: w,
+                          userId: userId,
+                          isDemo: state.isDemo,
+                          onOpenProject: openProject(w.workspace),
+                        ),
                       ),
                     ),
                   ),
