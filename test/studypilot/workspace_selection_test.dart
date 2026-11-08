@@ -189,6 +189,29 @@ void main() {
       });
     }
 
+    testWidgets('resizing desktop → phone → desktop keeps the project filter and Board view', (tester) async {
+      await pumpShell(tester, size: const Size(1440, 900));
+      await tester.tap(find.descendant(of: find.byType(NavigationRail), matching: find.text('Teams')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(cafeName).hitTestable());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Menu Relaunch'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Board view'));
+      await tester.pumpAndSettle();
+      expect(find.text('Project: Menu Relaunch'), findsOneWidget);
+      expect(find.textContaining('tasks · by status'), findsOneWidget);
+
+      for (final size in [const Size(390, 844), const Size(1440, 900)]) {
+        tester.view.physicalSize = size;
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.text('Project: Menu Relaunch'), findsOneWidget, reason: 'at $size');
+        expect(find.textContaining('tasks · by status'), findsOneWidget, reason: 'at $size');
+      }
+      expect(find.byType(NavigationRail), findsOneWidget);
+    });
+
     testWidgets('project card opens Tasks filtered by that project', (tester) async {
       await pumpShell(tester, size: const Size(390, 1600));
       await openTab(tester, 'Teams');
