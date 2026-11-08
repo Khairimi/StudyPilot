@@ -394,7 +394,7 @@ class WorkloadHealthSection extends StatelessWidget {
       children: [
         SpSectionHeading(
           title: 'Team Workload Health',
-          subtitle: 'Active hours vs ${hoursText(summary.workspace.workloadThresholdHours)} capacity',
+          subtitle: 'Open-task hours (any due date) vs ${hoursText(summary.workspace.workloadThresholdHours)} limit',
           icon: Icons.monitor_heart_outlined,
           actionLabel: onViewDetails == null ? null : 'Details',
           onAction: onViewDetails,

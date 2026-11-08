@@ -130,7 +130,7 @@ Future<void> showAssignSheet(
         children: [
           Text('Assign task', style: theme.textTheme.titleLarge),
           const SizedBox(height: SpSpacing.xs),
-          Text('Current load vs ${hoursText(workspace.workloadThresholdHours)} capacity',
+          Text('Open-task hours (any due date) vs ${hoursText(workspace.workloadThresholdHours)} limit',
               style: theme.textTheme.bodyMedium),
           const SizedBox(height: SpSpacing.md),
           const SpDemoModeBanner(),
