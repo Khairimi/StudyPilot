@@ -1,21 +1,31 @@
 import 'package:flutter/foundation.dart';
 import 'package:study_app/models/note.dart';
 import 'package:study_app/models/block.dart';
+import 'package:hive/hive.dart';
 import 'package:study_app/database/hive_service.dart';
+import 'package:study_app/database/user_session.dart';
 import 'package:uuid/uuid.dart';
 
-class NoteProvider with ChangeNotifier {
+class NoteProvider with ChangeNotifier implements UserScopedState {
   List<Note> _allNotes = [];
   final _uuid = const Uuid();
 
-  NoteProvider() {
-    _loadAllNotes();
+  /// Active user's box, or null when signed out (operations become no-ops).
+  Box<Note>? get _box => HiveService.activeOrNull?.notes;
+
+  @override
+  void clearUserState() {
+    _allNotes = [];
+    notifyListeners();
   }
+
+  @override
+  Future<void> loadUserState(String uid) async => _loadAllNotes();
 
   List<Note> get allNotes => _allNotes;
 
   void _loadAllNotes() {
-    _allNotes = HiveService.notesBox.values.toList();
+    _allNotes = _box?.values.toList() ?? [];
     _allNotes.sort((a, b) => b.lastEdited.compareTo(a.lastEdited)); // Newest edited first
     notifyListeners();
   }
@@ -34,12 +44,14 @@ class NoteProvider with ChangeNotifier {
       lastEdited: DateTime.now(),
     );
 
-    HiveService.notesBox.put(newNote.id, newNote);
+    final box = _box;
+    if (box == null) return;
+    box.put(newNote.id, newNote);
     _loadAllNotes();
   }
 
   void updateNoteTitle(String noteId, String newTitle) {
-    final note = HiveService.notesBox.get(noteId);
+    final note = _box?.get(noteId);
     if (note != null) {
       note.title = newTitle;
       note.lastEdited = DateTime.now();
@@ -49,17 +61,19 @@ class NoteProvider with ChangeNotifier {
   }
 
   void deleteNote(String noteId) {
-    HiveService.notesBox.delete(noteId);
+    _box?.delete(noteId);
     _loadAllNotes();
   }
 
   void deleteNotesForChapter(String chapterId) {
-    final keysToDelete = HiveService.notesBox.values
+    final box = _box;
+    if (box == null) return;
+    final keysToDelete = box.values
         .where((n) => n.chapterId == chapterId)
         .map((n) => n.id)
         .toList();
     for (var key in keysToDelete) {
-      HiveService.notesBox.delete(key);
+      box.delete(key);
     }
     _loadAllNotes();
   }
@@ -67,7 +81,7 @@ class NoteProvider with ChangeNotifier {
   // --- Block Management --- //
 
   void addBlockToNote(String noteId, BlockType type, String content) {
-    final note = HiveService.notesBox.get(noteId);
+    final note = _box?.get(noteId);
     if (note != null) {
       final newBlock = Block(
         id: _uuid.v4(),
@@ -83,7 +97,7 @@ class NoteProvider with ChangeNotifier {
   }
 
   void updateBlockContent(String noteId, String blockId, String newContent) {
-    final note = HiveService.notesBox.get(noteId);
+    final note = _box?.get(noteId);
     if (note != null) {
       final blockIndex = note.blocks.indexWhere((b) => b.id == blockId);
       if (blockIndex != -1) {
@@ -96,7 +110,7 @@ class NoteProvider with ChangeNotifier {
   }
 
   void toggleCheckboxBlock(String noteId, String blockId) {
-    final note = HiveService.notesBox.get(noteId);
+    final note = _box?.get(noteId);
     if (note != null) {
       final blockIndex = note.blocks.indexWhere((b) => b.id == blockId);
       if (blockIndex != -1 && note.blocks[blockIndex].type == BlockType.checkbox) {
@@ -109,7 +123,7 @@ class NoteProvider with ChangeNotifier {
   }
 
   void deleteBlock(String noteId, String blockId) {
-    final note = HiveService.notesBox.get(noteId);
+    final note = _box?.get(noteId);
     if (note != null) {
       note.blocks.removeWhere((b) => b.id == blockId);
       // Re-index orders
@@ -123,7 +137,7 @@ class NoteProvider with ChangeNotifier {
   }
 
   void reorderBlocks(String noteId, int oldIndex, int newIndex) {
-    final note = HiveService.notesBox.get(noteId);
+    final note = _box?.get(noteId);
     if (note == null) return;
 
     if (newIndex > oldIndex) {
@@ -153,7 +167,9 @@ String addNoteFromImport(String chapterId, String title, List<Block> blocks) {
     lastEdited: DateTime.now(),
   );
 
-  HiveService.notesBox.put(newNote.id, newNote);
+  final box = _box;
+  if (box == null) throw NoActiveUserError();
+  box.put(newNote.id, newNote);
   _loadAllNotes();
   return newNote.id;
 }

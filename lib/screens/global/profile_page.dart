@@ -7,6 +7,7 @@ import 'package:study_app/providers/theme_provider.dart';
 import 'package:study_app/database/hive_service.dart';
 import 'package:study_app/screens/global/settings_page.dart';
 import 'package:study_app/widgets/notification_sheet.dart';
+import 'package:study_app/screens/global/export_feedback.dart';
 import 'package:study_app/services/data_export_service.dart';
 import 'package:study_app/services/data_import_service.dart';
 import 'package:study_app/providers/subject_provider.dart';
@@ -16,6 +17,7 @@ import 'package:study_app/providers/study_provider.dart';
 import 'package:study_app/providers/mind_map_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:study_app/screens/global/auth_screens.dart';
+import 'package:study_app/services/auth_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -54,7 +56,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
 
     if (confirm == true) {
-      await FirebaseAuth.instance.signOut();
+      await AuthService.signOut();
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
@@ -144,7 +146,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final user = FirebaseAuth.instance.currentUser;
     final displayName = user?.displayName?.isNotEmpty == true
         ? user!.displayName!
-        : HiveService.settingsBox.get('student_name', defaultValue: 'Student User');
+        : (HiveService.activeOrNull?.settings.get('student_name', defaultValue: 'Student User') ?? 'Student User');
     final email = user?.email ?? '';
 
     return CustomCard(
@@ -235,7 +237,8 @@ class _ProfilePageState extends State<ProfilePage> {
               title: const Text('Export to File'),
               onTap: () async {
                 Navigator.pop(ctx);
-                await DataExportService.exportToFile();
+                final result = await DataExportService.exportToFile();
+                if (mounted) showExportResult(context, result);
               },
             ),
             ListTile(
@@ -295,7 +298,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void _showEditNameDialog(BuildContext context) {
     final controller = TextEditingController(
       text: FirebaseAuth.instance.currentUser?.displayName ??
-          HiveService.settingsBox.get('student_name', defaultValue: 'Student User'),
+          (HiveService.activeOrNull?.settings.get('student_name', defaultValue: 'Student User') ?? 'Student User'),
     );
     showDialog(
       context: context,
@@ -317,7 +320,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 if (controller.text.isNotEmpty) {
                   // Update both Firebase dan Hive
                   await FirebaseAuth.instance.currentUser?.updateDisplayName(controller.text);
-                  HiveService.settingsBox.put('student_name', controller.text);
+                  HiveService.activeOrNull?.settings.put('student_name', controller.text);
                   if (!mounted) return;
                   setState(() {});
                   Navigator.pop(context);

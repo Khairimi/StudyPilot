@@ -1,9 +1,19 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:study_app/screens/global/auth_screens.dart';
-import 'package:study_app/theme/app_theme.dart';
+import 'package:study_app/studypilot/core/branding.dart';
+import 'package:study_app/studypilot/core/theme/sp_colors.dart';
+import 'package:study_app/studypilot/screens/shell/studypilot_shell.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  /// Test hooks (tests run without Firebase): the initial sign-in state and
+  /// the screen shown to a signed-in user.
+  @visibleForTesting
+  final Future<bool> Function()? isSignedInOverride;
+  @visibleForTesting
+  final Widget? signedInDestinationOverride;
+
+  const SplashScreen({super.key, this.isSignedInOverride, this.signedInDestinationOverride});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -26,19 +36,39 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _controller.forward();
 
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const AuthEntryScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 500),
-          ),
-        );
-      }
-    });
+    _routeAfterSplash();
+  }
+
+  /// Firebase restores a saved session asynchronously, so `currentUser` can
+  /// briefly be null on web. The first auth event is the reliable answer.
+  /// If it fails or never arrives, the user sees sign-in instead of a stuck splash.
+  Future<bool> _isSignedIn() async {
+    try {
+      final user = await FirebaseAuth.instance.authStateChanges().first.timeout(const Duration(seconds: 10));
+      return user != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _routeAfterSplash() async {
+    final signedIn = (widget.isSignedInOverride ?? _isSignedIn)();
+    await Future<void>.delayed(const Duration(seconds: 3));
+    final isSignedIn = await signedIn;
+    if (!mounted) return;
+
+    final Widget destination = isSignedIn
+        ? (widget.signedInDestinationOverride ?? const StudyPilotShell())
+        : const AuthEntryScreen();
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => destination,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
+    );
   }
 
   @override
@@ -52,7 +82,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: AppTheme.primaryGradient,
+          gradient: LinearGradient(
+            colors: [SpColors.indigo500, SpColors.indigo700],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
         ),
         child: Center(
           child: FadeTransition(
@@ -82,7 +116,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'Study Flow',
+                  SpBrand.appName,
                   style: Theme.of(context).textTheme.displayMedium?.copyWith(
                         color: Colors.white,
                         letterSpacing: 1.5,
@@ -91,10 +125,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'your productivity companion',
+                  SpBrand.tagline,
+                  textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.white.withOpacity(0.9),
-                        fontStyle: FontStyle.italic,
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                 ),
               ],

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:study_app/providers/theme_provider.dart';
 import 'package:study_app/database/hive_service.dart';
+import 'package:study_app/screens/global/export_feedback.dart';
 import 'package:study_app/services/data_export_service.dart';
 import 'package:study_app/services/data_import_service.dart';
 import 'package:study_app/providers/subject_provider.dart';
@@ -23,7 +24,7 @@ class _SettingsPageState extends State<SettingsPage> {
   final TextEditingController _nameController = TextEditingController(
   text: FirebaseAuth.instance.currentUser?.displayName?.isNotEmpty == true
       ? FirebaseAuth.instance.currentUser!.displayName!
-      : HiveService.settingsBox.get('student_name', defaultValue: 'Student User'),
+      : (HiveService.activeOrNull?.settings.get('student_name', defaultValue: 'Student User') ?? 'Student User'),
 );
 
   @override
@@ -35,7 +36,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void _saveName() async {
   if (_nameController.text.isNotEmpty) {
     await FirebaseAuth.instance.currentUser?.updateDisplayName(_nameController.text);
-    HiveService.settingsBox.put('student_name', _nameController.text);
+    await HiveService.activeOrNull?.settings.put('student_name', _nameController.text);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Name updated successfully')),
@@ -55,14 +56,17 @@ class _SettingsPageState extends State<SettingsPage> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
-              await HiveService.subjectsBox.clear();
-              await HiveService.chaptersBox.clear();
-              await HiveService.notesBox.clear();
-              await HiveService.studyTimeBox.clear();
-              await HiveService.todosBox.clear();
-              await HiveService.flashcardsBox.clear();
-              await HiveService.mindMapsBox.clear();
-              await HiveService.timestampsBox.clear();
+              // Only the signed-in user's own storage is cleared.
+              final b = HiveService.activeOrNull;
+              if (b == null) return;
+              await b.subjects.clear();
+              await b.chapters.clear();
+              await b.notes.clear();
+              await b.studyTime.clear();
+              await b.todos.clear();
+              await b.flashcards.clear();
+              await b.mindMaps.clear();
+              await b.timestamps.clear();
               
               if (mounted) {
                 Provider.of<SubjectProvider>(context, listen: false).refresh();
@@ -102,7 +106,8 @@ class _SettingsPageState extends State<SettingsPage> {
               title: const Text('Export to File'),
               onTap: () async {
                 Navigator.pop(ctx);
-                await DataExportService.exportToFile();
+                final result = await DataExportService.exportToFile();
+                if (mounted) showExportResult(context, result);
               },
             ),
           ],

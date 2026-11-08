@@ -1,0 +1,13 @@
+{
+  "name": "studypilot-firestore-rules-tests",
+  "private": true,
+  "type": "module",
+  "description": "Emulator-only tests for ../firestore.rules. Needs Java 21 and firebase-tools.",
+  "scripts": {
+    "test": "firebase emulators:exec --config firebase.json --only firestore --project demo-studypilot-rules \"node --test rules.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "6.0.0",
+    "firebase": "13.0.0"
+  }
+}

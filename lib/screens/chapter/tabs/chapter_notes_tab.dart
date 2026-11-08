@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:study_app/database/hive_service.dart';
 import 'package:study_app/providers/note_provider.dart';
 import 'package:study_app/providers/chapter_provider.dart';
 import 'package:study_app/widgets/custom_card.dart';
@@ -118,6 +119,8 @@ class ChapterNotesTab extends StatelessWidget {
 
   Future<void> _importFromClassroom(BuildContext context, dynamic chapter) async {
     final noteProvider = Provider.of<NoteProvider>(context, listen: false);
+    // The note must only be saved for the account that started the import.
+    final sessionAtStart = HiveService.sessionId;
 
     _showLoadingDialog(context, 'Checking Classroom attachments...');
 
@@ -192,6 +195,10 @@ class ChapterNotesTab extends StatelessWidget {
         }
       }
 
+      if (!HiveService.isCurrentSession(sessionAtStart)) {
+        if (context.mounted) Navigator.pop(context); // close loading
+        return;
+      }
       final newNoteId = noteProvider.addNoteFromImport(chapterId, chapter.title, blocks);
 
       if (context.mounted) Navigator.pop(context); // close loading
