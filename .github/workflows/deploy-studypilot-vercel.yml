@@ -1,0 +1,161 @@
+name: Deploy StudyPilot to Vercel
+
+# Builds the Flutter Web app on a GitHub runner and uploads the finished files
+# to the EXISTING Vercel project (studypilot-csc661) as a prebuilt static
+# deployment. Vercel never builds anything and Vercel Git integration is not
+# needed.
+#
+# Required repository secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID.
+
+on:
+  push:
+    branches:
+      - feature/studypilot-ui-clean
+  workflow_dispatch:
+
+# Least privilege: the job only reads the repository.
+permissions:
+  contents: read
+
+# One production deployment at a time. A newer push waits instead of cancelling
+# a deployment that is already uploading.
+concurrency:
+  group: studypilot-vercel-production
+  cancel-in-progress: false
+
+env:
+  # Flutter release used for local development of this project (git tag).
+  FLUTTER_VERSION: "3.47.9"
+  # Vercel CLI is pinned so a new CLI release cannot change the deploy behaviour.
+  VERCEL_CLI_VERSION: "65.14.0"
+  VERCEL_PROJECT_NAME: "studypilot-csc661"
+  PRODUCTION_URL: "https://studypilot-csc661.vercel.app"
+  FLUTTER_SUPPRESS_ANALYTICS: "true"
+  CI: "true"
+
+jobs:
+  deploy:
+    name: Build Flutter Web and deploy to Vercel
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Manual runs are allowed only from the clean branch; any other ref is skipped.
+    if: github.ref == 'refs/heads/feature/studypilot-ui-clean'
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Check deployment secrets are configured
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          # Only reports which secret is missing; values are never printed.
+          missing=0
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Repository secret $name is not set."
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Confirm the secrets point at the existing project
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          # Read-only lookup. Stops the run before any upload unless the project
+          # ID resolves to the existing project named studypilot-csc661.
+          query=""
+          case "$VERCEL_ORG_ID" in team_*) query="?teamId=$VERCEL_ORG_ID" ;; esac
+          code="$(curl -s -o project.json -w '%{http_code}' \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}${query}")" || code=000
+          if [ "$code" != "200" ]; then
+            rm -f project.json
+            echo "::error::Vercel project lookup failed (HTTP $code). Check the three secrets."
+            exit 1
+          fi
+          name="$(node -e 'process.stdout.write(String(JSON.parse(require("fs").readFileSync("project.json","utf8")).name))')"
+          rm -f project.json
+          if [ "$name" != "$VERCEL_PROJECT_NAME" ]; then
+            echo "::error::VERCEL_PROJECT_ID resolves to '$name', expected '$VERCEL_PROJECT_NAME'. Nothing was deployed."
+            exit 1
+          fi
+          echo "Target project confirmed: $name"
+
+      - name: Install Flutter ${{ env.FLUTTER_VERSION }}
+        run: |
+          git clone --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+
+      - name: Flutter version
+        run: |
+          flutter --version
+          flutter config --no-analytics
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build Flutter Web (release)
+        run: flutter build web --release
+
+      - name: Check build output
+        run: |
+          test -f build/web/index.html
+          test -f build/web/main.dart.js
+          test -f build/web/flutter_bootstrap.js
+          echo "Files in build/web: $(find build/web -type f | wc -l)"
+
+      - name: Package as Vercel prebuilt static output
+        run: |
+          # Build Output API v3: static files go in .vercel/output/static.
+          # Hand-made so the Vercel project's own build settings are not used.
+          # StudyPilot uses hash URLs, so no rewrites are needed.
+          rm -rf .vercel/output
+          mkdir -p .vercel/output/static
+          cp -R build/web/. .vercel/output/static/
+          printf '{\n  "version": 3\n}\n' > .vercel/output/config.json
+          test -f .vercel/output/static/index.html
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Vercel CLI
+        run: npm install --global "vercel@${VERCEL_CLI_VERSION}"
+
+      - name: Deploy to existing Vercel project (production)
+        id: deploy
+        env:
+          # The CLI reads all three from the environment. The token is not passed
+          # on the command line, so it never appears in process lists or logs.
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          url="$(vercel deploy --prebuilt --prod --yes)"
+          echo "Deployment URL: $url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test production site
+        run: |
+          # The app must be served, and main.dart.js must be JavaScript
+          # (a wrong type shows a blank page).
+          for attempt in 1 2 3 4 5 6; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' "$PRODUCTION_URL/")" || code=000
+            type="$(curl -s -o /dev/null -w '%{content_type}' "$PRODUCTION_URL/main.dart.js")" || type=""
+            echo "attempt $attempt: / -> $code, main.dart.js -> $type"
+            if [ "$code" = "200" ] && echo "$type" | grep -qi 'javascript'; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Production site did not pass the smoke test."
+          exit 1
